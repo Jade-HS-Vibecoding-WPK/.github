@@ -277,7 +277,8 @@ function setupLights() {
   const sun = new THREE.DirectionalLight('#fff4e2', 2.4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -38, right: 38, top: 38, bottom: -38, near: 1, far: 140 });
+  // großzügiger Schattenbereich, damit auch Hochhäuser Schatten werfen
+  Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 420 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
@@ -614,7 +615,7 @@ function poseFor(i) {
   const H = houses[i];
   const floors = H.p.house.floors || 2;
   const portrait = innerWidth < innerHeight;
-  const back = (6.5 + Math.max(0, floors - 2) * 1.3) * (portrait ? 1.45 : 1);
+  const back = (6.5 + clamp(floors - 2, 0, 6) * 1.3) * (portrait ? 1.45 : 1);
   const x = -H.side * (portrait ? 3.2 : 1.4), z = H.z + back;
   const tx = H.side * (SETBACK + 0.5), tz = H.z;
   const ty = clamp(floors * FLOOR_H * 0.5 + 0.8, 2.6, 8);
@@ -948,7 +949,7 @@ function update(dt) {
 
   const sz = Math.round(pos.z / 4) * 4;
   lights.sun.target.position.set(0, 0, sz - 10);
-  lights.sun.position.set(28, 46, sz + 8);
+  lights.sun.position.set(73, 120, sz + 37);
   lights.sky.position.copy(camera.position);
 
   // Ansicht seitlich/oben verschieben, damit die Karte das Haus nicht verdeckt

@@ -172,7 +172,7 @@ function readmeSection() {
     `<a href="${site}"><img src="street.svg" alt="Straßenabwicklung der ${config.streetName} – klicken für den 3D-Rundgang" width="100%"></a>`,
     '',
     `<p align="center"><b><a href="${site}">Rundgang durch die ${config.streetName} →</a></b><br>`,
-    `<sub>Jedes Projekt ist ein Haus. Je mehr Commits, desto höher. Neue Repos ziehen automatisch ein.</sub></p>`,
+    `<sub>Jedes Projekt ist ein Haus, jeder Commit ein Geschoss. Neue Repos ziehen automatisch ein.</sub></p>`,
     '',
     '| Nr. | Projekt | Worum geht’s | Team |',
     '|---:|---|---|---|',
@@ -194,6 +194,16 @@ if (readmeNew !== readmeOld) await writeFile(readmeUrl, readmeNew);
 
 function svgEsc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Höhere Häuser werden in der Abwicklung mit Bruchlinie gekürzt gezeichnet.
+const MAX_DRAWN = 12;
+const drawnFloors = (h) => Math.min(h.floors, MAX_DRAWN);
+
+function zigzag(x0, x1, y, amp = 2.2, step = 5) {
+  const pts = [];
+  for (let x = x0, i = 0; x <= x1 + 0.01; x += step, i++) pts.push(`${x.toFixed(1)},${(y + (i % 2 ? amp : -amp)).toFixed(1)}`);
+  return pts.join(' ');
 }
 
 function houseSvg(p, x, groundY, s) {
@@ -219,19 +229,29 @@ function houseSvg(p, x, groundY, s) {
     out.push(`<line class="thin" x1="${cx + 7 * s}" y1="${ct}" x2="${cx + 7 * s}" y2="${ct + 3 * s}"/>`);
     return { svg: out.join(''), top: ct };
   }
-  const bh = h.floors * FLOOR_H * s;
+  const drawn = drawnFloors(h);
+  const bh = drawn * FLOOR_H * s;
   const y0 = groundY - bh;
   out.push(`<rect class="ink" x="${x}" y="${y0}" width="${w}" height="${bh}" fill="${h.facade}"/>`);
   // Fenster
   const cols = Math.max(2, Math.floor((h.width - 1) / 2));
   const ww = 1.1 * s, wh = 1.4 * s;
-  for (let f = 0; f < h.floors; f++) {
+  for (let f = 0; f < drawn; f++) {
     for (let c = 0; c < cols; c++) {
       const cxw = x + (w * (c + 0.5)) / cols;
       if (f === 0 && Math.abs(cxw - (x + w / 2)) < 1.2 * s) continue;
       const wy = groundY - f * FLOOR_H * s - 1.0 * s - wh;
       out.push(`<rect class="win" x="${(cxw - ww / 2).toFixed(1)}" y="${wy.toFixed(1)}" width="${ww.toFixed(1)}" height="${wh.toFixed(1)}"/>`);
     }
+  }
+  // Bruchlinie mit echter Geschosszahl
+  if (h.floors > drawn) {
+    const yb = groundY - (drawn / 2) * FLOOR_H * s - FLOOR_H * s * 0.15;
+    const bandH = 13;
+    out.push(`<rect class="paper" x="${x - 3}" y="${yb - bandH / 2}" width="${w + 6}" height="${bandH}"/>`);
+    out.push(`<polyline class="zig" points="${zigzag(x - 3, x + w + 3, yb - bandH / 2)}"/>`);
+    out.push(`<polyline class="zig" points="${zigzag(x - 3, x + w + 3, yb + bandH / 2)}"/>`);
+    out.push(`<text class="floors" x="${x + w / 2}" y="${yb + 3.6}" text-anchor="middle">${h.floors} G</text>`);
   }
   // Tür
   out.push(`<rect class="door" x="${x + w / 2 - 0.55 * s}" y="${groundY - 2.2 * s}" width="${1.1 * s}" height="${2.2 * s}"/>`);
@@ -274,11 +294,22 @@ function streetSvg() {
   for (let i = 0; i < projects.length; i += perRow) rows.push(projects.slice(i, i + perRow));
   if (!rows.length) rows.push([]);
   const marginX = 26;
-  const labelRise = 150;
-  const maxHouse = 7 * FLOOR_H * s + 10 * 0.42 * s;
+  // Platz für die schrägen Beschriftungen (40°) aus der Textlänge schätzen
+  const labelLen = (p) => (String(p.number).length + 1 + p.title.length) * 7.4;
+  const labelRise = Math.ceil(Math.max(60, ...projects.map(labelLen)) * Math.sin(Math.PI * 40 / 180)) + 24;
+  const tallest = Math.max(2, ...projects.map((p) => (p.house.floors === 0 ? 4.8 : drawnFloors(p.house))));
+  const maxHouse = tallest * FLOOR_H * s + 10 * 0.42 * s;
   const rowH = labelRise + maxHouse + 58;
-  const rowWidths = rows.map((r) => r.reduce((w, p) => w + p.house.width * s + gap, 0));
-  const width = Math.max(900, Math.round(Math.max(...rowWidths) + marginX * 2 + 170));
+  const rowWidths = rows.map((r) => {
+    let x = marginX, right = 0;
+    for (const p of r) {
+      const cx = x + (p.house.width * s) / 2;
+      right = Math.max(right, cx + labelLen(p) * Math.cos(Math.PI * 40 / 180) + 20, x + p.house.width * s + marginX);
+      x += p.house.width * s + gap;
+    }
+    return right;
+  });
+  const width = Math.max(900, Math.round(Math.max(...rowWidths)));
   const height = Math.round(rows.length * rowH + 34);
   const parts = [];
   rows.forEach((row, ri) => {
@@ -322,7 +353,13 @@ function streetSvg() {
   .num { fill: #1f4e8c; font-weight: 700; }
   .plate { font-size: 11px; font-weight: 700; fill: #1f4e8c; }
   .meta { font-size: 12px; letter-spacing: 0.12em; fill: #6b7280; }
+  .paper { fill: #ffffff; }
+  .zig { fill: none; stroke: #1f2a36; stroke-width: 1; stroke-linejoin: round; }
+  .floors { font-size: 10px; font-weight: 700; fill: #1f2a36; }
   @media (prefers-color-scheme: dark) {
+    .paper { fill: #0d1117; }
+    .zig { stroke: #e8e3d8; }
+    .floors { fill: #e8e3d8; }
     text { fill: #e8e3d8; }
     .ink { stroke: #e8e3d8; }
     .street { fill: #2c3138; }
