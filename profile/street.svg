@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1153 393" width="1153" height="393" role="img" aria-label="Vibecoding-Allee: 16 Projekte als Häuser">
+<style>
+  text { font-family: 'Barlow Semi Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif; fill: #1f2a36; }
+  .ink { stroke: #1f2a36; stroke-width: 1.2; stroke-linejoin: round; }
+  .roofline { fill: none; stroke-width: 3; stroke-linejoin: round; }
+  .thin { stroke: #6b7280; stroke-width: 1; }
+  .crane { stroke: #e0a526; stroke-width: 2.4; }
+  .win { fill: #33414e; }
+  .door { fill: #6b4f3a; }
+  .street { fill: #d9d6cf; }
+  .dash { stroke: #fbfaf6; stroke-width: 1.5; stroke-dasharray: 10 8; }
+  .leader { stroke: #9aa3ad; stroke-width: 0.8; stroke-dasharray: 2 3; }
+  .label { font-size: 15px; font-weight: 600; }
+  .num { fill: #1f4e8c; font-weight: 700; }
+  .plate { font-size: 11px; font-weight: 700; fill: #1f4e8c; }
+  .meta { font-size: 12px; letter-spacing: 0.12em; fill: #6b7280; }
+  @media (prefers-color-scheme: dark) {
+    text { fill: #e8e3d8; }
+    .ink { stroke: #e8e3d8; }
+    .street { fill: #2c3138; }
+    .dash { stroke: #8b939c; }
+    .num, .plate { fill: #8fb4e8; }
+    .meta { fill: #9aa3ad; }
+  }
+</style>
+<text class="meta" x="26" y="22">VIBECODING-ALLEE · STRASSENABWICKLUNG · 16 HÄUSER</text>
+<g class="meta"><line class="ink" x1="1067" y1="16" x2="1127" y2="16"/><line class="ink" x1="1067" y1="12" x2="1067" y2="20"/><line class="ink" x1="1127" y1="12" x2="1127" y2="20"/><text x="1061" y="20" text-anchor="end">10 m</text></g>
+<rect class="street" x="0" y="335.2" width="1153" height="22"/>
+<line class="ink" x1="0" y1="335.2" x2="1153" y2="335.2"/>
+<line class="dash" x1="0" y1="346.2" x2="1153" y2="346.2"/>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Bau-Normen-KI"><g><rect class="ink" x="26" y="317.2" width="51" height="18" fill="#e6d6b8"/><rect class="win" x="31.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="65.2" y="320.8" width="6.6" height="8.4"/><rect class="door" x="48.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="23.6,317.2 79.4,304.45 79.4,306.84999999999997 23.6,319.59999999999997" fill="#6d6a5f"/><polygon class="ink" points="26,319.59999999999997 77,306.84999999999997 77,319.59999999999997" fill="#e6d6b8"/>
+<line class="leader" x1="51.5" y1="300.45" x2="51.5" y2="238.94"/>
+<text class="label" transform="translate(53.5,236.94) rotate(-40)"><tspan class="num">1</tspan> Bau Normen KI</text>
+<text class="plate" x="51.5" y="350.2" text-anchor="middle">1</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/gebaeudehoehentool-umgebungsmodell"><g><rect class="ink" x="90" y="281.2" width="39" height="54" fill="#d99677"/><rect class="win" x="96.5" y="320.8" width="6.6" height="8.4"/><rect class="win" x="116.0" y="320.8" width="6.6" height="8.4"/><rect class="win" x="96.5" y="302.8" width="6.6" height="8.4"/><rect class="win" x="116.0" y="302.8" width="6.6" height="8.4"/><rect class="win" x="96.5" y="284.8" width="6.6" height="8.4"/><rect class="win" x="116.0" y="284.8" width="6.6" height="8.4"/><rect class="door" x="106.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><rect class="ink" x="88.8" y="278.8" width="41.4" height="2.4000000000000004" fill="#8b4c3d"/>
+<line class="leader" x1="109.5" y1="274.8" x2="109.5" y2="238.94"/>
+<text class="label" transform="translate(111.5,236.94) rotate(-40)"><tspan class="num">2</tspan> Gebaeudehoehentool umgebungsmodell</text>
+<text class="plate" x="109.5" y="350.2" text-anchor="middle">2</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/laserdatei-aus-3D"><g><rect class="ink" x="142" y="281.2" width="39" height="54" fill="#aebfa5"/><rect class="win" x="148.4" y="320.8" width="6.6" height="8.4"/><rect class="win" x="167.9" y="320.8" width="6.6" height="8.4"/><rect class="win" x="148.4" y="302.8" width="6.6" height="8.4"/><rect class="win" x="167.9" y="302.8" width="6.6" height="8.4"/><rect class="win" x="148.4" y="284.8" width="6.6" height="8.4"/><rect class="win" x="167.9" y="284.8" width="6.6" height="8.4"/><rect class="door" x="158.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><path class="ink" d="M140.8,281.2 A20.7,9.584999999999999 0 0 1 182.2,281.2 Z" fill="#6d6a5f"/>
+<line class="leader" x1="161.5" y1="267.615" x2="161.5" y2="238.94"/>
+<text class="label" transform="translate(163.5,236.94) rotate(-40)"><tspan class="num">3</tspan> Laserdatei aus 3D</text>
+<text class="plate" x="161.5" y="350.2" text-anchor="middle">3</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Grundstuecksanalyse-Tool"><g><rect class="ink" x="194" y="317.2" width="51" height="18" fill="#f3efe6"/><rect class="win" x="199.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="233.2" y="320.8" width="6.6" height="8.4"/><rect class="door" x="216.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="191.6,317.2 247.4,304.45 247.4,306.84999999999997 191.6,319.59999999999997" fill="#8b4c3d"/><polygon class="ink" points="194,319.59999999999997 245,306.84999999999997 245,319.59999999999997" fill="#f3efe6"/>
+<line class="leader" x1="219.5" y1="300.45" x2="219.5" y2="238.94"/>
+<text class="label" transform="translate(221.5,236.94) rotate(-40)"><tspan class="num">4</tspan> Grundstuecksanalyse Tool</text>
+<text class="plate" x="219.5" y="350.2" text-anchor="middle">4</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Mapping-Tool-Architektur"><g><rect class="ink" x="258" y="299.2" width="42" height="36" fill="#d99677"/><rect class="win" x="261.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="289.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="261.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="275.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="289.7" y="302.8" width="6.6" height="8.4"/><rect class="door" x="275.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="255.6,299.2 302.4,288.7 302.4,291.09999999999997 255.6,301.59999999999997" fill="#6d6a5f"/><polygon class="ink" points="258,301.59999999999997 300,291.09999999999997 300,301.59999999999997" fill="#d99677"/>
+<line class="leader" x1="279" y1="284.7" x2="279" y2="238.94"/>
+<text class="label" transform="translate(281,236.94) rotate(-40)"><tspan class="num">5</tspan> Mapping Tool Architektur</text>
+<text class="plate" x="279" y="350.2" text-anchor="middle">5</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Umgebungsanalyse-mit-Modellbau-Laserdatei"><g><rect class="ink" x="313" y="299.2" width="51" height="36" fill="#c4bdb4"/><rect class="win" x="318.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="352.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="318.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="335.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="352.2" y="302.8" width="6.6" height="8.4"/><rect class="door" x="335.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="310.6,299.2 338.5,277.78 366.4,299.2" fill="#c4bdb4"/><polyline class="roofline" points="310.6,299.2 338.5,277.78 366.4,299.2" stroke="#8b4c3d"/>
+<line class="leader" x1="338.5" y1="273.78" x2="338.5" y2="238.94"/>
+<text class="label" transform="translate(340.5,236.94) rotate(-40)"><tspan class="num">6</tspan> Umgebungsanalyse mit Modellbau Laserdatei</text>
+<text class="plate" x="338.5" y="350.2" text-anchor="middle">6</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Energieeffizienz-Oekobilanz-Optimierung"><g><rect class="ink" x="377" y="299.2" width="42" height="36" fill="#e6d6b8"/><rect class="win" x="380.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="408.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="380.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="394.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="408.7" y="302.8" width="6.6" height="8.4"/><rect class="door" x="394.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><path class="ink" d="M375.8,299.2 A22.2,10.26 0 0 1 420.2,299.2 Z" fill="#3f4b56"/>
+<line class="leader" x1="398" y1="284.94" x2="398" y2="238.94"/>
+<text class="label" transform="translate(400,236.94) rotate(-40)"><tspan class="num">7</tspan> Energieeffizienz Oekobilanz Optimierung</text>
+<text class="plate" x="398" y="350.2" text-anchor="middle">7</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/CO-Emissionsrechner"><g><rect class="ink" x="432" y="317.2" width="45" height="18" fill="#e8c97a"/><rect class="win" x="436.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="466.2" y="320.8" width="6.6" height="8.4"/><rect class="door" x="451.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="429.6,317.2 434.4,292 474.6,292 479.4,317.2" fill="#6d6a5f"/>
+<line class="leader" x1="454.5" y1="288" x2="454.5" y2="238.94"/>
+<text class="label" transform="translate(456.5,236.94) rotate(-40)"><tspan class="num">8</tspan> CO Emissionsrechner</text>
+<text class="plate" x="454.5" y="350.2" text-anchor="middle">8</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/plan-pruefer"><g><rect class="ink" x="490" y="281.2" width="51" height="54" fill="#efe3d3"/><rect class="win" x="495.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="529.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="495.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="512.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="529.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="495.2" y="284.8" width="6.6" height="8.4"/><rect class="win" x="512.2" y="284.8" width="6.6" height="8.4"/><rect class="win" x="529.2" y="284.8" width="6.6" height="8.4"/><rect class="door" x="512.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="487.6,281.2 515.5,259.78 543.4,281.2" fill="#efe3d3"/><polyline class="roofline" points="487.6,281.2 515.5,259.78 543.4,281.2" stroke="#8b4c3d"/>
+<line class="leader" x1="515.5" y1="255.77999999999997" x2="515.5" y2="238.94"/>
+<text class="label" transform="translate(517.5,236.94) rotate(-40)"><tspan class="num">9</tspan> Plan pruefer</text>
+<text class="plate" x="515.5" y="350.2" text-anchor="middle">9</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/urban-analysis-plugin"><g><rect class="ink" x="554" y="281.2" width="42" height="54" fill="#e8c97a"/><rect class="win" x="557.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="585.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="557.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="571.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="585.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="557.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="571.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="585.7" y="284.8" width="6.6" height="8.4"/><rect class="door" x="571.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><rect class="ink" x="552.8" y="278.8" width="44.4" height="2.4000000000000004" fill="#6d6a5f"/>
+<line class="leader" x1="575" y1="274.8" x2="575" y2="238.94"/>
+<text class="label" transform="translate(577,236.94) rotate(-40)"><tspan class="num">10</tspan> Urban analysis plugin</text>
+<text class="plate" x="575" y="350.2" text-anchor="middle">10</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/15-min-stadt-scanner"><g><rect class="ink" x="609" y="281.2" width="42" height="54" fill="#d4c2a4"/><rect class="win" x="612.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="640.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="612.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="626.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="640.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="612.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="626.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="640.7" y="284.8" width="6.6" height="8.4"/><rect class="door" x="626.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="606.6,281.2 630,263.56 653.4,281.2" fill="#d4c2a4"/><polyline class="roofline" points="606.6,281.2 630,263.56 653.4,281.2" stroke="#8b4c3d"/>
+<line class="leader" x1="630" y1="259.56" x2="630" y2="238.94"/>
+<text class="label" transform="translate(632,236.94) rotate(-40)"><tspan class="num">11</tspan> 15 min stadt scanner</text>
+<text class="plate" x="630" y="350.2" text-anchor="middle">11</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/fassaden-tool"><g><rect class="ink" x="664" y="317.2" width="48" height="18" fill="#e8c97a"/><rect class="win" x="668.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="700.7" y="320.8" width="6.6" height="8.4"/><rect class="door" x="684.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="661.6,317.2 688,297.03999999999996 714.4,317.2" fill="#e8c97a"/><polyline class="roofline" points="661.6,317.2 688,297.03999999999996 714.4,317.2" stroke="#6d6a5f"/>
+<line class="leader" x1="688" y1="293.03999999999996" x2="688" y2="238.94"/>
+<text class="label" transform="translate(690,236.94) rotate(-40)"><tspan class="num">12</tspan> Fassaden tool</text>
+<text class="plate" x="688" y="350.2" text-anchor="middle">12</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/treppenplaner"><g><rect class="ink" x="725" y="281.2" width="48" height="54" fill="#e8c97a"/><rect class="win" x="729.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="761.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="729.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="745.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="761.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="729.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="745.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="761.7" y="284.8" width="6.6" height="8.4"/><rect class="door" x="745.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="722.6,281.2 749,261.03999999999996 775.4,281.2" fill="#e8c97a"/><polyline class="roofline" points="722.6,281.2 749,261.03999999999996 775.4,281.2" stroke="#55504b"/>
+<line class="leader" x1="749" y1="257.03999999999996" x2="749" y2="238.94"/>
+<text class="label" transform="translate(751,236.94) rotate(-40)"><tspan class="num">13</tspan> Treppenplaner</text>
+<text class="plate" x="749" y="350.2" text-anchor="middle">13</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Map2Model"><g><rect class="ink" x="786" y="317.2" width="39" height="18" fill="#e6d6b8"/><rect class="win" x="792.5" y="320.8" width="6.6" height="8.4"/><rect class="win" x="812.0" y="320.8" width="6.6" height="8.4"/><rect class="door" x="802.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="783.6,317.2 805.5,300.82 827.4,317.2" fill="#e6d6b8"/><polyline class="roofline" points="783.6,317.2 805.5,300.82 827.4,317.2" stroke="#8b4c3d"/>
+<line class="leader" x1="805.5" y1="296.82" x2="805.5" y2="238.94"/>
+<text class="label" transform="translate(807.5,236.94) rotate(-40)"><tspan class="num">14</tspan> Map2Model</text>
+<text class="plate" x="805.5" y="350.2" text-anchor="middle">14</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Workflow_App"><g><rect class="ink" x="838" y="263.2" width="42" height="72" fill="#a7bacb"/><rect class="win" x="841.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="869.7" y="320.8" width="6.6" height="8.4"/><rect class="win" x="841.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="855.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="869.7" y="302.8" width="6.6" height="8.4"/><rect class="win" x="841.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="855.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="869.7" y="284.8" width="6.6" height="8.4"/><rect class="win" x="841.7" y="266.8" width="6.6" height="8.4"/><rect class="win" x="855.7" y="266.8" width="6.6" height="8.4"/><rect class="win" x="869.7" y="266.8" width="6.6" height="8.4"/><rect class="door" x="855.7" y="322" width="6.6000000000000005" height="13.200000000000001"/><path class="ink" d="M836.8,263.2 A22.2,10.26 0 0 1 881.2,263.2 Z" fill="#8b4c3d"/>
+<line class="leader" x1="859" y1="248.94" x2="859" y2="238.94"/>
+<text class="label" transform="translate(861,236.94) rotate(-40)"><tspan class="num">15</tspan> Workflow App</text>
+<text class="plate" x="859" y="350.2" text-anchor="middle">15</text></g></a>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/Standortanalyse-"><g><rect class="ink" x="893" y="299.2" width="51" height="36" fill="#d4c2a4"/><rect class="win" x="898.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="932.2" y="320.8" width="6.6" height="8.4"/><rect class="win" x="898.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="915.2" y="302.8" width="6.6" height="8.4"/><rect class="win" x="932.2" y="302.8" width="6.6" height="8.4"/><rect class="door" x="915.2" y="322" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="890.6,299.2 895.4,275.26 941.6,275.26 946.4,299.2" fill="#55504b"/>
+<line class="leader" x1="918.5" y1="271.26" x2="918.5" y2="238.94"/>
+<text class="label" transform="translate(920.5,236.94) rotate(-40)"><tspan class="num">16</tspan> Standortanalyse</text>
+<text class="plate" x="918.5" y="350.2" text-anchor="middle">16</text></g></a>
+</svg>

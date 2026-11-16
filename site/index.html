@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vibecoding-Allee</title>
+  <meta name="description" content="Die Projekte der Vibecoding KI-Werkstatt an der Jade Hochschule als begehbare Straße – jedes Repository ist ein Haus.">
+  <meta property="og:title" content="Vibecoding-Allee">
+  <meta property="og:description" content="Die Projekte der Vibecoding KI-Werkstatt als begehbare Straße.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='4' fill='%231f4e8c'/%3E%3Crect x='5' y='5' width='22' height='22' rx='2' fill='none' stroke='white' stroke-width='1.5'/%3E%3Cpath d='M9 22v-7l7-5 7 5v7z' fill='white'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-label="Begehbare 3D-Straße, in der jedes Projekt ein Haus ist. Die gleichen Projekte stehen im Verzeichnis."></canvas>
+
+  <header class="panel title">
+    <p class="eyebrow">Jade Hochschule · KI-Werkstatt</p>
+    <h1 id="street-name">Vibecoding-Allee</h1>
+    <p class="sub" id="subtitle"></p>
+    <details class="legend">
+      <summary>Steuerung &amp; Legende</summary>
+      <ul class="controls only-fine">
+        <li><span class="key">W</span><span class="key">S</span> <span class="key">↑</span><span class="key">↓</span> oder Mausrad: gehen</li>
+        <li><span class="key">A</span><span class="key">D</span> seitlich · <span class="key">←</span><span class="key">→</span> drehen · <span class="key">⇧</span> rennen</li>
+        <li>Ziehen mit der Maus: umschauen</li>
+        <li>Klick auf ein Haus: Projekt öffnen</li>
+      </ul>
+      <ul class="controls only-coarse">
+        <li>Wischen hoch/runter: gehen</li>
+        <li>Wischen links/rechts: umschauen</li>
+        <li>Haus antippen: Projekt öffnen</li>
+      </ul>
+      <ul class="legend-items">
+        <li><b>Geschosse</b> = Commits. Jede Verdopplung bringt ein Geschoss.</li>
+        <li><b>Leuchtende Fenster</b> = in den letzten 24 Stunden gepusht.</li>
+        <li><b>Gerüst und Kran</b> = das Repo ist noch leer.</li>
+        <li><b>Neue Repos</b> bauen am Ende der Straße an.</li>
+      </ul>
+    </details>
+  </header>
+
+  <aside class="panel directory" id="directory" aria-label="Verzeichnis der Projekte">
+    <button class="dir-toggle" id="dir-toggle" aria-expanded="false" aria-controls="dir-body">
+      <span>Verzeichnis</span> <span class="count" id="count"></span>
+    </button>
+    <div class="dir-body" id="dir-body">
+      <input type="search" id="search" placeholder="Projekt, Person, Stichwort …" aria-label="Projekte durchsuchen" autocomplete="off">
+      <ol id="dir-list"></ol>
+      <p class="stand" id="stand"></p>
+    </div>
+  </aside>
+
+  <nav class="panel strip" id="strip" aria-label="Straßenverlauf: links und rechts der Straße"></nav>
+
+  <article class="panel card" id="card" hidden aria-labelledby="card-title" tabindex="-1"></article>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+
+  <div class="touchpad" aria-hidden="true">
+    <button data-key="KeyW" aria-label="Vorwärts">▲</button>
+    <button data-key="KeyS" aria-label="Rückwärts">▼</button>
+  </div>
+
+  <div class="loading" id="loading"><span>Die Straße wird gebaut …</span></div>
+
+  <noscript><p class="noscript">Für den Rundgang braucht es JavaScript. Alle Projekte stehen auch auf <a href="https://github.com/Jade-HS-Vibecoding-WPK">github.com/Jade-HS-Vibecoding-WPK</a>.</p></noscript>
+
+  <script type="module" src="street.js"></script>
+</body>
+</html>

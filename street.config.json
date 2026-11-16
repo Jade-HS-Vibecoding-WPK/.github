@@ -1,0 +1,8 @@
+{
+  "org": "Jade-HS-Vibecoding-WPK",
+  "streetName": "Vibecoding-Allee",
+  "subtitle": "Projekte der KI-Werkstatt · Jade Hochschule · Blockwoche 16.–20.11.2026",
+  "siteUrl": "https://jade-hs-vibecoding-wpk.github.io/.github/",
+  "exclude": [".github"],
+  "overrides": {}
+}
