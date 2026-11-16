@@ -1037,8 +1037,11 @@ async function main() {
   const hashName = decodeURIComponent(location.hash.slice(1));
   const start = houses.findIndex((H) => H.p.name === hashName);
 
-  // Anflug von oben in die Straße
-  if (!reduceMotion) {
+  if (start >= 0) {
+    // Direktlink (z. B. Hausnummer aus der README): ohne Anflug direkt zum Haus
+    select(start);
+  } else if (!reduceMotion) {
+    // Anflug von oben in die Straße
     pos.set(0, 0, 40); camY = 30; pitch = -0.62; yaw = 0;
     flyTo({ x: 0, z: 12, y: EYE, yaw: 0, pitch: -0.04 }, 2.6, true);
   }
@@ -1046,12 +1049,9 @@ async function main() {
   renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    const wasIntro = tween?.lock;
     update(dt);
-    if (wasIntro && !tween && start >= 0) select(start);
     renderer.render(scene, camera);
   });
-  if (reduceMotion && start >= 0) select(start);
   requestAnimationFrame(() => $('#loading').classList.add('done'));
 }
 
