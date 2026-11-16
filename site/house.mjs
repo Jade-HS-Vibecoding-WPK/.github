@@ -40,9 +40,10 @@ export function rng(seed) {
   };
 }
 
-/** Jeder Commit ist ein Geschoss – ohne Obergrenze. */
+/** Jede Verdopplung der Commits bringt ein Geschoss: 1 → 1, 2 → 2, 4 → 3, 8 → 4, 16 → 5 … */
 export function floorsFor(commits) {
-  return Math.max(1, commits || 0);
+  if (!commits || commits < 1) return 1;
+  return 1 + Math.floor(Math.log2(commits));
 }
 
 export function houseFor(name, commits, empty) {

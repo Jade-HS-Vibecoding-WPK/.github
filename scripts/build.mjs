@@ -183,7 +183,7 @@ function readmeSection() {
     `<a href="${site}"><img src="street.svg" alt="Straßenabwicklung der ${config.streetName} – klicken für den 3D-Rundgang" width="100%"></a>`,
     '',
     `<p align="center"><b><a href="${site}">Rundgang durch die ${config.streetName} →</a></b><br>`,
-    `<sub>Jedes Projekt ist ein Haus, jeder Commit ein Geschoss. Neue Repos ziehen automatisch ein.</sub></p>`,
+    `<sub>Jedes Projekt ist ein Haus. Jede Verdopplung der Commits bringt ein Geschoss. Neue Repos ziehen automatisch ein.</sub></p>`,
     '',
     '| Nr. | Projekt | Worum geht’s | Team |',
     '|---:|---|---|---|',
