@@ -803,7 +803,7 @@ function placeLampLights() {
 
 // ---------- Tag und Nacht nach echter Uhrzeit ----------
 
-const PLACE = { lat: 53.53, lon: 8.11 }; // Jade Hochschule, Wilhelmshaven
+const PLACE = { lat: 53.143, lon: 8.214 }; // Oldenburg (Jade Hochschule, Studienort Oldenburg)
 const DEG = Math.PI / 180;
 
 /** Sonnenstand (Höhe, Azimut ab Nord im Uhrzeigersinn) – NOAA-Näherung, genau genug fürs Licht. */
