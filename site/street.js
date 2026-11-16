@@ -790,6 +790,7 @@ function buildLamps(count) {
     lightsList.push(l);
   }
   lamps = { headMat, poolMat, spots, lights: lightsList };
+  placeLampLights(); // sofort platzieren, sonst stehen die Lichter anfangs im Ursprung
 }
 
 function placeLampLights() {
