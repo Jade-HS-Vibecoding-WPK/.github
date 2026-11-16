@@ -109,6 +109,17 @@ async function describe(repo) {
     .map((c) => ({ login: c.login, avatar: c.avatar_url, url: c.html_url, commits: c.contributions }));
 
   const override = config.overrides?.[repo.name] ?? {};
+  // Team von Hand festlegen (z. B. wenn jemand anderes das Repo nur angelegt hat)
+  if (Array.isArray(override.team)) {
+    const people = await Promise.all(
+      override.team.map(async (login) => {
+        const known = list.find((c) => c.login?.toLowerCase() === login.toLowerCase());
+        const u = known ?? (await gh(`/users/${encodeURIComponent(login)}`));
+        return u ? { login: u.login, avatar: u.avatar_url, url: u.html_url, commits: known?.contributions ?? 0 } : null;
+      }),
+    );
+    team.splice(0, team.length, ...people.filter(Boolean));
+  }
   const about = repo.description?.trim() ?? '';
   const fromReadme = about ? '' : readmeSummary(md, repo.name);
   const empty = commits === 0;
