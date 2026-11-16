@@ -92,7 +92,30 @@ h1 {
 }
 .sub { margin: 0; font-size: 14px; color: var(--muted); }
 
+.daylight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 3px 11px 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--hover);
+  font: 600 13px/20px var(--ui);
+  cursor: pointer;
+}
+.daylight:hover { border-color: var(--link); }
+.dl-icon { display: inline-grid; width: 16px; height: 16px; }
+.dl-icon svg { width: 16px; height: 16px; }
+
 .legend { margin-top: 10px; font-size: 14px; }
+.mat { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
+.sw { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); }
+.sw.klinker { background: repeating-linear-gradient(0deg, #d8d1c5 0 1px, #a3563d 1px 4px); }
+.sw.holz { background: repeating-linear-gradient(90deg, #5b3e22 0 1px, #b98654 1px 4px); }
+.sw.putz { background: #e6d6b8; }
+.sw.beton { background: #b8b5ae; }
+.sw.metall { background: repeating-linear-gradient(90deg, #c3c9ce 0 2px, #7d868e 2px 3.5px); }
 .legend summary {
   cursor: pointer;
   font-weight: 600;

@@ -141,7 +141,7 @@ async function describe(repo) {
     empty,
     team,
     image: override.image ?? readmeImage(md, repo, readme?.path ?? 'README.md'),
-    house: houseFor(repo.name, commits, empty),
+    house: houseFor(repo.name, commits, empty, repo.language),
   };
 }
 
@@ -183,7 +183,7 @@ function readmeSection() {
     `<a href="${site}"><img src="street.svg" alt="Straßenabwicklung der ${config.streetName} – klicken für den 3D-Rundgang" width="100%"></a>`,
     '',
     `<p align="center"><b><a href="${site}">Rundgang durch die ${config.streetName} →</a></b><br>`,
-    `<sub>Jedes Projekt ist ein Haus. Jede Verdopplung der Commits bringt ein Geschoss. Neue Repos ziehen automatisch ein.</sub></p>`,
+    `<sub>Jedes Projekt ist ein Haus: Jede Verdopplung der Commits bringt ein Geschoss, die Fassade zeigt die Programmiersprache. Neue Repos ziehen automatisch ein.</sub></p>`,
     '',
     '| Nr. | Projekt | Worum geht’s | Team |',
     '|---:|---|---|---|',
@@ -217,6 +217,25 @@ function zigzag(x0, x1, y, amp = 2.2, step = 5) {
   return pts.join(' ');
 }
 
+// Fassadenmaterial als SVG-Muster (gleiche Zuordnung wie in der 3D-Straße)
+const usedPatterns = new Map();
+function patternSvg(id, m, c) {
+  if (m === 'klinker')
+    return `<pattern id="${id}" width="8" height="6" patternUnits="userSpaceOnUse"><rect width="8" height="6" fill="${c}"/><path d="M0 .3H8M0 3.3H8M4 .3V3.3M0 3.3V6M8 3.3V6" stroke="#eadfd2" stroke-width=".7" fill="none"/></pattern>`;
+  if (m === 'holz')
+    return `<pattern id="${id}" width="3" height="10" patternUnits="userSpaceOnUse"><rect width="3" height="10" fill="${c}"/><path d="M.4 0V10" stroke="#3b2a1a" stroke-opacity=".45" stroke-width=".6"/></pattern>`;
+  if (m === 'beton')
+    return `<pattern id="${id}" width="12" height="7" patternUnits="userSpaceOnUse"><rect width="12" height="7" fill="${c}"/><path d="M0 .3H12M.3 0V7" stroke="#6b6b6b" stroke-opacity=".35" stroke-width=".6" fill="none"/><circle cx="3" cy="3.5" r=".55" fill="#555" fill-opacity=".5"/><circle cx="9" cy="3.5" r=".55" fill="#555" fill-opacity=".5"/></pattern>`;
+  return `<pattern id="${id}" width="3" height="4" patternUnits="userSpaceOnUse"><rect width="3" height="4" fill="${c}"/><path d="M.8 0V4" stroke="#fff" stroke-opacity=".45" stroke-width=".9"/><path d="M2.2 0V4" stroke="#000" stroke-opacity=".2" stroke-width=".7"/></pattern>`;
+}
+function facadeFill(h) {
+  const m = h.material ?? 'putz';
+  if (m === 'putz') return h.facade;
+  const id = `f-${m}-${h.facade.slice(1)}`;
+  if (!usedPatterns.has(id)) usedPatterns.set(id, patternSvg(id, m, h.facade));
+  return `url(#${id})`;
+}
+
 function houseSvg(p, x, groundY, s) {
   const h = p.house;
   const w = h.width * s;
@@ -243,7 +262,7 @@ function houseSvg(p, x, groundY, s) {
   const drawn = drawnFloors(h);
   const bh = drawn * FLOOR_H * s;
   const y0 = groundY - bh;
-  out.push(`<rect class="ink" x="${x}" y="${y0}" width="${w}" height="${bh}" fill="${h.facade}"/>`);
+  out.push(`<rect class="ink" x="${x}" y="${y0}" width="${w}" height="${bh}" fill="${facadeFill(h)}"/>`);
   // Fenster
   const cols = Math.max(2, Math.floor((h.width - 1) / 2));
   const ww = 1.1 * s, wh = 1.4 * s;
@@ -276,7 +295,7 @@ function houseSvg(p, x, groundY, s) {
   } else if (h.roof === 'gable') {
     if (h.ridge === 'street') {
       const rh = h.width * 0.42 * s;
-      out.push(`<polygon class="ink" points="${x - o},${y0} ${x + w / 2},${y0 - rh} ${x + w + o},${y0}" fill="${h.facade}"/>`);
+      out.push(`<polygon class="ink" points="${x - o},${y0} ${x + w / 2},${y0 - rh} ${x + w + o},${y0}" fill="${facadeFill(h)}"/>`);
       out.push(`<polyline class="roofline" points="${x - o},${y0} ${x + w / 2},${y0 - rh} ${x + w + o},${y0}" stroke="${fill}"/>`);
       top = y0 - rh;
     } else {
@@ -287,7 +306,7 @@ function houseSvg(p, x, groundY, s) {
   } else if (h.roof === 'shed') {
     const rh = h.width * 0.25 * s;
     out.push(`<polygon class="ink" points="${x - o},${y0} ${x + w + o},${y0 - rh} ${x + w + o},${y0 - rh + 0.4 * s} ${x - o},${y0 + 0.4 * s}" fill="${fill}"/>`);
-    out.push(`<polygon class="ink" points="${x},${y0 + 0.4 * s} ${x + w},${y0 - rh + 0.4 * s} ${x + w},${y0 + 0.4 * s}" fill="${h.facade}"/>`);
+    out.push(`<polygon class="ink" points="${x},${y0 + 0.4 * s} ${x + w},${y0 - rh + 0.4 * s} ${x + w},${y0 + 0.4 * s}" fill="${facadeFill(h)}"/>`);
     top = y0 - rh;
   } else if (h.roof === 'barrel') {
     const rh = (h.width / 2 + 0.3) * 0.45 * s;
@@ -298,6 +317,7 @@ function houseSvg(p, x, groundY, s) {
 }
 
 function streetSvg() {
+  usedPatterns.clear();
   const s = 6; // px pro Meter
   const gap = 13;
   const perRow = 24;
@@ -379,6 +399,7 @@ function streetSvg() {
     .meta { fill: #9aa3ad; }
   }
 </style>
+<defs>${[...usedPatterns.values()].join('')}</defs>
 <text class="meta" x="${marginX}" y="22">${svgEsc(title)} · ${projects.length} HÄUSER</text>
 <g class="meta"><line class="ink" x1="${scaleX}" y1="16" x2="${scaleX + 10 * s}" y2="16"/><line class="ink" x1="${scaleX}" y1="12" x2="${scaleX}" y2="20"/><line class="ink" x1="${scaleX + 10 * s}" y1="12" x2="${scaleX + 10 * s}" y2="20"/><text x="${scaleX - 6}" y="20" text-anchor="end">10 m</text></g>
 ${parts.join('\n')}

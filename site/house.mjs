@@ -1,6 +1,6 @@
 // Gemeinsame Hauslogik für die 3D-Straße (Browser) und den Generator (Node).
-// Alles hängt nur vom Repo-Namen und der Commit-Zahl ab, damit ein Haus
-// überall gleich aussieht und nur wächst, wenn neue Commits dazukommen.
+// Alles hängt nur vom Repo-Namen, der Commit-Zahl und der Hauptsprache ab,
+// damit ein Haus überall gleich aussieht und nur wächst, wenn Commits dazukommen.
 
 export const FLOOR_H = 3;
 
@@ -15,6 +15,20 @@ export const FACADES = [
   '#c4bdb4', // Beton
   '#efe3d3', // Sandstein
 ];
+
+/** Fassadenmaterial nach Programmiersprache (Hauptsprache laut GitHub). */
+export const MATERIALS = {
+  klinker: { label: 'Klinker', langs: ['JavaScript', 'TypeScript'], colors: ['#a3563d', '#8e4b36', '#b4694c'] },
+  holz: { label: 'Holz', langs: ['Python', 'Jupyter Notebook', 'R'], colors: ['#b98654', '#9b6c43', '#c9a173'] },
+  beton: { label: 'Sichtbeton', langs: ['PowerShell', 'Shell', 'Batchfile', 'Dockerfile', 'Makefile'], colors: ['#b8b5ae', '#aaa79f', '#c4c1ba'] },
+  metall: { label: 'Metall', langs: ['Java', 'C#', 'C++', 'C', 'Go', 'Rust', 'Kotlin', 'Swift', 'Dart', 'GDScript'], colors: ['#a3abb2', '#6c757d', '#c3c9ce'] },
+  putz: { label: 'Putz', langs: ['HTML', 'CSS', 'SCSS', 'Vue', 'Svelte'], colors: FACADES },
+};
+
+export function materialFor(language) {
+  for (const [key, m] of Object.entries(MATERIALS)) if (m.langs.includes(language)) return key;
+  return 'putz'; // HTML/CSS und Repos ohne erkannte Sprache
+}
 
 export const ROOF_COLORS = ['#55504b', '#8b4c3d', '#3f4b56', '#6d6a5f'];
 
@@ -46,15 +60,17 @@ export function floorsFor(commits) {
   return 1 + Math.floor(Math.log2(commits));
 }
 
-export function houseFor(name, commits, empty) {
+export function houseFor(name, commits, empty, language) {
   const r = rng(hash(name.toLowerCase()));
   const pick = (arr) => arr[Math.floor(r() * arr.length)];
+  const material = materialFor(language);
   return {
     width: 6 + Math.round(r() * 6) / 2,  // 6–9 m entlang der Straße
     depth: 7 + Math.round(r() * 6) / 2,  // 7–10 m in die Tiefe
     roof: pick(ROOF_TYPES),
     ridge: r() < 0.5 ? 'street' : 'side', // giebelständig / traufständig
-    facade: pick(FACADES),
+    material,
+    facade: pick(MATERIALS[material].colors),
     roofColor: pick(ROOF_COLORS),
     floors: empty ? 0 : floorsFor(commits),
     seed: hash(name),
