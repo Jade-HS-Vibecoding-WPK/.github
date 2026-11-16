@@ -12,7 +12,7 @@ Die README im Projekt erklärt, was das Tool kann und wie man es startet.
 <a href="https://jade-hs-vibecoding-wpk.github.io/.github/"><img src="street.svg" alt="Straßenabwicklung der Vibecoding-Allee – klicken für den 3D-Rundgang" width="100%"></a>
 
 <p align="center"><b><a href="https://jade-hs-vibecoding-wpk.github.io/.github/">Rundgang durch die Vibecoding-Allee →</a></b><br>
-<sub>Jedes Projekt ist ein Haus, jeder Commit ein Geschoss. Neue Repos ziehen automatisch ein.</sub></p>
+<sub>Jedes Projekt ist ein Haus. Jede Verdopplung der Commits bringt ein Geschoss. Neue Repos ziehen automatisch ein.</sub></p>
 
 | Nr. | Projekt | Worum geht’s | Team |
 |---:|---|---|---|
