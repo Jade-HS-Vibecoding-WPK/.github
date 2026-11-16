@@ -58,6 +58,14 @@ jobs:
         if: steps.build.outputs.changed == 'true' || github.event_name != 'schedule'
         uses: actions/configure-pages@v5
 
+      - name: Cache-Busting (Pages cacht Dateien 10 Minuten)
+        if: steps.build.outputs.changed == 'true' || github.event_name != 'schedule'
+        run: |
+          v="${GITHUB_SHA::7}"
+          sed -i "s|src=\"street.js\"|src=\"street.js?v=$v\"|; s|href=\"style.css\"|href=\"style.css?v=$v\"|" site/index.html
+          sed -i "s|'./house.mjs'|'./house.mjs?v=$v'|" site/street.js
+          grep -c "?v=$v" site/index.html site/street.js
+
       - name: Seite hochladen
         if: steps.build.outputs.changed == 'true' || github.event_name != 'schedule'
         uses: actions/upload-pages-artifact@v3
