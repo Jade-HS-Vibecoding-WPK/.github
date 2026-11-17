@@ -1,7 +1,7 @@
 // Ansicht von der Straße für die eigenen Bauweisen (site/styles.js), fürs README-Banner.
 // Was sich mit der Uhrzeit ändert (z. B. die Jetzt-Linie), bleibt hier weg, damit das
 // Banner nicht bei jedem Lauf der Action neu committet wird.
-import { FLOOR_H, rng, EFFIZIENZ, SWATCHES, mapLayerCount, ampelFor, renditeSteps } from '../site/house.mjs';
+import { FLOOR_H, rng, EFFIZIENZ, SWATCHES, mapLayerCount, renditeSteps } from '../site/house.mjs';
 
 const n1 = (v) => +v.toFixed(1);
 const rect = (x, y, w, h, fill, extra = '') => `<rect x="${n1(x)}" y="${n1(y)}" width="${n1(w)}" height="${n1(h)}" fill="${fill}"${extra}/>`;
@@ -266,11 +266,6 @@ export function styleSvg(p, x, groundY, s, kit) {
         top = Math.min(top, groundY - sh - 0.22 * s);
       });
       out.push(door(x, w, groundY, s));
-      const state = ampelFor(p.pushedAt), ax = x + (W / 2 + 1.15) * s;
-      out.push(rect(ax - 0.17 * s, groundY - 2.12 * s, 0.34 * s, 0.95 * s, '#262624'));
-      [['rot', '#d04a4a', -0.28], ['gelb', '#e0a030', 0], ['gruen', '#2e9e5b', 0.28]].forEach(([k, c, dy]) => {
-        out.push(`<circle cx="${n1(ax)}" cy="${n1(groundY - (1.65 - dy) * s)}" r="${n1(0.1 * s)}" fill="${k === state ? c : '#4a4a46'}"/>`);
-      });
       break;
     }
     default:

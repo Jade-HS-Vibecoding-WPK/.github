@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { FLOOR_H, rng, EFFIZIENZ, PASSIV_UPGRADES, SWATCHES, mapLayerCount, ampelFor, renditeSteps } from './house.mjs';
+import { FLOOR_H, rng, EFFIZIENZ, PASSIV_UPGRADES, SWATCHES, mapLayerCount, renditeSteps } from './house.mjs';
 
 let K; // Werkzeugkasten aus street.js: mat, mesh, box, boxGeo, meterUVs, facadeMaterial, addDoor, …
 
@@ -743,7 +743,7 @@ function kartenplatte(g, p, hs) {
   return { hedges: false };
 }
 
-// ---------- 19 Kaufcheck: Stadthaus wie ein steigendes Balkendiagramm, Ampel nach Aktivität ----------
+// ---------- 19 Kaufcheck: Stadthaus wie ein steigendes Balkendiagramm ----------
 function rendite(g, p, hs) {
   const { W, D, fz } = dims(hs);
   const plaster = K.facadeMaterial('putz', '#f4f4f2');
@@ -775,15 +775,6 @@ function rendite(g, p, hs) {
   for (const y of [0.75, 1.5, 2.25]) fugen.push(K.boxGeo(W + 0.02, 0.03, 0.02, 0, y, fz + 0.01));
   add(g, merged(fugen, K.mat('#bdbab2'), { cast: false }));
   K.addDoor(g, fz, K.plateTex);
-  // Ampel neben der Tür: Urteil nach der letzten Aktivität
-  const state = ampelFor(p.pushedAt);
-  const ax = 1.15;
-  g.add(K.box(0.34, 0.95, 0.18, dark, ax, 1.65, fz + 0.1));
-  [['rot', '#d04a4a', 0.28], ['gelb', '#e0a030', 0], ['gruen', '#2e9e5b', -0.28]].forEach(([k, col, dy]) => {
-    const on = k === state;
-    const m = K.mat(on ? col : '#3a3a37', on ? { emissive: col, emissiveIntensity: 1.1, roughness: 0.4 } : { roughness: 0.5 });
-    g.add(at(K.mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 20).rotateX(Math.PI / 2), m, { cast: false }), ax, 1.65 + dy, fz + 0.2));
-  });
   return {};
 }
 

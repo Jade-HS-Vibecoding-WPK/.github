@@ -91,11 +91,6 @@ export const EFFIZIENZ = ['G', 'F', 'E', 'D', 'C', 'B', 'A'];
 export const SWATCHES = [['klinker', 'Klinker'], ['holz', 'Holz'], ['putz', 'Putz'], ['beton', 'Sichtbeton'], ['metall', 'Metall']];
 export const MAP_LAYERS = ['Grünflächen', 'Hauptstraßen', 'Buslinie', 'Radwege', 'Bäume', 'Nutzungen', 'Fußwege'];
 export const mapLayerCount = (hs) => Math.min(MAP_LAYERS.length, hs.floors + 1);
-// Ampel am Kaufcheck-Haus nach der letzten Aktivität: grün < 1 Tag, gelb < 3 Tage, sonst rot
-export function ampelFor(pushedAt, now = Date.now()) {
-  const h = (now - Date.parse(pushedAt)) / 3600000;
-  return !(h >= 0) || h < 24 ? 'gruen' : h < 72 ? 'gelb' : 'rot';
-}
 // Stadthaus in drei Abschnitten, die nach außen ansteigen wie ein Renditechart
 export const renditeSteps = (floors) => [Math.max(1, Math.round(floors * 0.5)), Math.max(1, Math.round(floors * 0.75)), floors];
 
@@ -119,7 +114,7 @@ export function styleLabel(hs) {
     case 'kacheln': return `Gantt-Haus · ${Math.max(0, n - 1)} Balken · rote Jetzt-Linie`;
     case 'holzrahmen': return `Holzrahmenbau im Schnitt · ${plural(n, 'Prüfmarke', 'Prüfmarken')}`;
     case 'kartenplatte': return `Weißmodell auf Kartenplatte · ${mapLayerCount(hs)} Layer`;
-    case 'rendite': return `Stadthaus · ${renditeSteps(n).join(' · ')} Geschosse · Ampel nach Aktivität`;
+    case 'rendite': return `Stadthaus wie ein Renditechart · ${renditeSteps(n).join(' · ')} Geschosse`;
   }
   return null;
 }
