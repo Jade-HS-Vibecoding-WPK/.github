@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor } from './house.mjs';
 
 // ---------- Maße der Straße (Meter) ----------
@@ -352,13 +353,24 @@ function buildRoof(type, span, length, wallMat, roofMat, r) {
     return { group: g, height: hh };
   }
   if (type === 'barrel') {
-    const rad = half + 0.3;
-    const geo = new THREE.CylinderGeometry(rad, rad, length + 0.5, 28, 1, false, Math.PI / 2, Math.PI);
+    const rad = half + 0.3, k = 0.45, hh = rad * k;
+    // Giebelwand bündig mit der Fassade, genau unter der Tonnenschale
+    const pts = [[-half, 0]];
+    for (let i = 0; i <= 20; i++) {
+      const x = -half + (span * i) / 20;
+      pts.push([x, Math.max(0, hh * Math.sqrt(1 - (x * x) / (rad * rad)) - 0.04)]);
+    }
+    pts.push([half, 0]);
+    g.add(prism(pts, length, wallMat));
+    // Schale offen und beidseitig sichtbar, damit sie auch von unten stimmt
+    const shellMat = roofMat.clone();
+    shellMat.side = THREE.DoubleSide;
+    const geo = new THREE.CylinderGeometry(rad, rad, length + 0.6, 32, 1, true, Math.PI / 2, Math.PI);
     geo.rotateX(Math.PI / 2);
-    const m = mesh(geo, [roofMat, wallMat, wallMat]);
-    m.scale.y = 0.45;
+    const m = mesh(geo, shellMat);
+    m.scale.y = k;
     g.add(m);
-    return { group: g, height: rad * 0.45 };
+    return { group: g, height: hh };
   }
   // flach
   g.add(box(span + 0.5, 0.36, length + 0.5, roofMat, 0, 0.18, 0));
@@ -554,8 +566,8 @@ function buildHouse(p, index, signTex, plateTex) {
     g.add(box(1.4, 2.45, 0.08, frameMat, 0, 1.5, front + 0.02, { cast: false }));
     g.add(box(1.15, 2.25, 0.12, mat('#6b4f3a', { roughness: 0.7 }), 0, 1.42, front + 0.04, { cast: false }));
     g.add(box(1.9, 0.18, 0.7, mat('#b9b3a8'), 0, 0.09, front + 0.35));
-    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.4), signMaterial(plateTex, 0.5));
-    plate.position.set(1.15, 2.45, front + 0.03);
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3), signMaterial(plateTex, 0.5));
+    plate.position.set(0, 2.12, front + 0.105);
     g.add(plate);
 
     // Dach
@@ -795,6 +807,10 @@ function buildLamps(count) {
 
 function placeLampLights() {
   if (!lamps) return;
+  if (inside >= 0) {
+    lamps.lights.forEach((l, i) => l.position.set(...ROOM_LIGHTS[i % ROOM_LIGHTS.length]));
+    return;
+  }
   const near = lamps.spots
     .map((p) => [p, (p.x - pos.x) ** 2 + (p.z - pos.z) ** 2])
     .sort((a, b) => a[1] - b[1]);
@@ -845,6 +861,9 @@ function presetFor(altDeg) {
 const dirFrom = (alt, az) => new THREE.Vector3(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt));
 const MOON_DIR = dirFrom(32 * DEG, 165 * DEG);
 
+// Drinnen: gedimmtes Kinolicht, kein Nebel, keine Sonne
+const INTERIOR = toColors({ top: '#000000', horizon: '#0d0f12', sun: '#ffffff', sunI: 0, hemiSky: '#fff1dc', hemiGround: '#3a3330', hemiI: 0.6, fogNear: 400, fogFar: 900, lamps: 0, glow: 0.3, win: 0.85, stars: 0 });
+
 const LIGHT_MODES = ['auto', 'tag', 'nacht'];
 let lightMode = 'auto';
 let envNow = null, envTarget = null, envClock = Infinity;
@@ -854,7 +873,7 @@ function computeEnvTarget() {
     : lightMode === 'nacht' ? { alt: -25 * DEG, az: 0 }
     : sunPosition(new Date());
   const altDeg = sky.alt / DEG;
-  const t = presetFor(altDeg);
+  const t = inside >= 0 ? mixEnv(INTERIOR, INTERIOR, 0) : presetFor(altDeg);
   const night = clamp((-altDeg - 2) / 8, 0, 1);
   t.dir = dirFrom(Math.max(sky.alt, 8 * DEG), sky.az).lerp(MOON_DIR, night).normalize();
   t.altDeg = altDeg;
@@ -896,8 +915,9 @@ function updateEnvironment(dt) {
   if (lamps) {
     lamps.headMat.emissiveIntensity = e.lamps * 3;
     lamps.poolMat.opacity = e.lamps * 0.55;
-    for (const l of lamps.lights) l.intensity = e.lamps * 38;
+    for (const l of lamps.lights) l.intensity = inside >= 0 ? 9 : e.lamps * 38;
   }
+  if (room) room.screenLight.intensity = inside >= 0 ? (houses[inside]?.p.demo ? 7 : 4) : 0;
 }
 
 const ICONS = {
@@ -931,6 +951,363 @@ function setupDaylight() {
   });
 }
 
+// ---------- Innenraum: Vorführraum mit Leinwand und Beamer ----------
+// Ein gemeinsamer Raum weit abseits der Straße. Beim Eintreten wird er für das
+// jeweilige Haus eingerichtet: Wände im Fassadenmaterial, Plakat, Live-Demo.
+
+const IZ = 1200;
+const ROOM = { w: 11, d: 14, h: 5.2 };
+const SCREEN = { w: 6.4, h: 3.6, y: 3.0 };
+const SCREEN_Z = IZ - ROOM.d / 2 + 0.11;
+const ROOM_LIGHTS = [
+  [-2.8, ROOM.h - 0.3, IZ - 3.5], [2.8, ROOM.h - 0.3, IZ + 0.5], [-2.8, ROOM.h - 0.3, IZ + 4.5],
+  [2.8, ROOM.h - 0.3, IZ - 3.5], [-2.8, ROOM.h - 0.3, IZ + 0.5], [2.8, ROOM.h - 0.3, IZ + 4.5],
+];
+let room = null;
+let inside = -1;
+let busy = false;
+let cssRenderer = null, cssScene = null, screenObj = null, screenFrame = null;
+
+function wrapLines(g, text, maxW, maxLines) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  let used = 0;
+  for (const w of words) {
+    const t = line ? `${line} ${w}` : w;
+    if (g.measureText(t).width <= maxW) { line = t; used++; continue; }
+    if (line) lines.push(line);
+    line = w;
+    used++;
+    if (lines.length === maxLines) break;
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  if (used < words.length || lines.length > maxLines) {
+    lines.length = Math.min(lines.length, maxLines);
+    lines[lines.length - 1] = lines[lines.length - 1].replace(/\s*\S*$/, ' …');
+  }
+  return lines;
+}
+
+function slideTexture(p) {
+  const c = document.createElement('canvas');
+  c.width = 1280; c.height = 720;
+  const g = c.getContext('2d');
+  g.fillStyle = '#14171c';
+  g.fillRect(0, 0, 1280, 720);
+  g.fillStyle = '#1f4e8c';
+  roundRect(g, 90, 90, 120, 96, 12);
+  g.fill();
+  g.fillStyle = '#fff';
+  g.font = `700 64px ${SIGN_FONT}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(String(p.number), 150, 140);
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = '#fbfaf6';
+  const fit = fitText(g, p.title, 940, 200, 700, 96, 48, 2);
+  let y = 90 + fit.size * 0.8;
+  for (const l of fit.lines) { g.fillText(l, 250, y); y += fit.lh; }
+  g.font = `600 40px ${UI_FONT}`;
+  g.fillStyle = '#f0a05f';
+  y = Math.max(y + 30, 330);
+  g.fillText(p.demo ? 'Live-Demo wird geladen …' : 'Noch keine Live-Demo', 90, y);
+  g.fillStyle = '#c9d0d8';
+  g.font = `500 32px ${UI_FONT}`;
+  y += 58;
+  for (const l of wrapLines(g, p.description || 'Noch keine Beschreibung.', 1100, 4)) { g.fillText(l, 90, y); y += 44; }
+  if (!p.demo) {
+    g.fillStyle = '#8b96a3';
+    g.font = `500 26px ${UI_FONT}`;
+    g.fillText('Tipp fürs Team: im Repo unter „About“ → Website einen Link eintragen oder GitHub Pages aktivieren.', 90, 660);
+  }
+  return canvasTexture(c);
+}
+
+function posterTexture(p) {
+  const W = 900, H = 1272;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fbfaf6';
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = '#1f2a36';
+  g.fillRect(0, 0, W, 120);
+  g.fillStyle = '#fbfaf6';
+  g.font = `600 38px ${UI_FONT}`;
+  g.fillText('VIBECODING-ALLEE', 60, 76);
+  g.textAlign = 'right';
+  g.fillText(`NR. ${p.number}`, W - 60, 76);
+  g.textAlign = 'left';
+  g.fillStyle = '#1f2a36';
+  const fit = fitText(g, p.title, W - 120, 330, 700, 120, 56, 3);
+  let y = 200 + fit.size * 0.8;
+  for (const l of fit.lines) { g.fillText(l, 60, y); y += fit.lh; }
+  g.fillStyle = '#c4561d';
+  g.fillRect(60, y + 6, 120, 8);
+  y += 80;
+  g.fillStyle = '#2b3540';
+  g.font = `500 36px ${UI_FONT}`;
+  for (const l of wrapLines(g, p.description || 'Noch keine Beschreibung.', W - 120, 12)) { g.fillText(l, 60, y); y += 50; }
+  g.fillStyle = '#1f2a36';
+  g.fillRect(60, H - 210, W - 120, 3);
+  g.font = `600 30px ${UI_FONT}`;
+  const team = (p.team ?? []).map((t) => t.login).join(' · ') || '–';
+  g.fillText(wrapLines(g, `Team: ${team}`, W - 120, 1)[0], 60, H - 150);
+  g.fillStyle = '#5b6672';
+  g.font = `500 28px ${UI_FONT}`;
+  const mat = MATERIALS[p.house.material ?? materialFor(p.language)].label;
+  g.fillText(`${p.language || 'ohne Sprache'} · ${mat} · ${p.commits ?? '–'} Commits`, 60, H - 95);
+  return canvasTexture(c);
+}
+
+function exitSignTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 176;
+  const g = c.getContext('2d');
+  g.fillStyle = '#12834b';
+  g.fillRect(0, 0, 512, 176);
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 6;
+  roundRect(g, 12, 12, 488, 152, 12);
+  g.stroke();
+  g.fillStyle = '#ffffff';
+  g.font = `700 84px ${SIGN_FONT}`;
+  g.textBaseline = 'middle';
+  g.fillText('AUSGANG', 60, 92);
+  g.beginPath();
+  g.moveTo(400, 62); g.lineTo(460, 88); g.lineTo(400, 114); g.closePath();
+  g.fill();
+  g.fillRect(372, 80, 40, 16);
+  return canvasTexture(c);
+}
+
+function buildRoom() {
+  const { w, d, h: rh } = ROOM;
+  const t = 0.2;
+  const g = new THREE.Group();
+  const sideMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.92 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: facadeTexture('holz', '#6e4c33'), roughness: 0.75 });
+  const floor = mesh(meterUVs(new THREE.BoxGeometry(w, t, d), w, t, d), floorMat, { cast: false });
+  floor.position.set(0, -t / 2, IZ);
+  g.add(floor);
+  g.add(box(w + 2 * t, t, d + 2 * t, mat('#15171b'), 0, rh + t / 2, IZ, { cast: false }));
+  g.add(box(w, rh, t, mat('#1c2026', { roughness: 0.95 }), 0, rh / 2, IZ - d / 2 - t / 2, { cast: false }));
+  for (const sx of [-1, 1]) {
+    const wall = mesh(meterUVs(new THREE.BoxGeometry(t, rh, d), t, rh, d), sideMat, { cast: false });
+    wall.position.set(sx * (w / 2 + t / 2), rh / 2, IZ);
+    g.add(wall);
+  }
+  const back = mesh(meterUVs(new THREE.BoxGeometry(w, rh, t), w, rh, t), sideMat, { cast: false });
+  back.position.set(0, rh / 2, IZ + d / 2 + t / 2);
+  g.add(back);
+
+  // Leinwand
+  g.add(box(SCREEN.w + 0.3, SCREEN.h + 0.3, 0.1, mat('#0b0c0f'), 0, SCREEN.y, IZ - d / 2 + 0.05, { cast: false }));
+  const slideMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+  const slide = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.w, SCREEN.h), slideMat);
+  slide.position.set(0, SCREEN.y, SCREEN_Z);
+  g.add(slide);
+
+  // Beamer an der Decke, mit Lichtkegel zur Leinwand
+  const pz = IZ + 1.6, py = rh - 0.6;
+  const metal = mat('#2b333c', { metalness: 0.5, roughness: 0.45 });
+  g.add(box(0.06, 0.5, 0.06, metal, 0, rh - 0.25, pz, { cast: false }));
+  g.add(box(0.56, 0.22, 0.48, mat('#e6e4df', { roughness: 0.5 }), 0, py, pz, { cast: false }));
+  const lens = mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.09, 20).rotateX(Math.PI / 2), mat('#15171b'), { cast: false });
+  lens.position.set(0.13, py, pz - 0.28);
+  g.add(lens);
+  const glass = new THREE.Mesh(new THREE.CircleGeometry(0.062, 20), new THREE.MeshBasicMaterial({ color: '#fff7e6' }));
+  glass.position.set(0.13, py, pz - 0.33);
+  glass.rotation.y = Math.PI;
+  g.add(glass);
+  const apex = [0.13, py, pz - 0.33];
+  const cs = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => [a * SCREEN.w / 2, SCREEN.y + b * SCREEN.h / 2, SCREEN_Z + 0.01]);
+  const verts = [], cols = [];
+  for (let i = 0; i < 4; i++) {
+    const a = cs[i], b = cs[(i + 1) % 4];
+    verts.push(...apex, ...a, ...b);
+    // sehr kleine Werte: additiv wird im gamma-kodierten Bild gemischt
+    cols.push(0.012, 0.012, 0.011, 0.0012, 0.0012, 0.0015, 0.0012, 0.0012, 0.0015);
+  }
+  const beamGeo = new THREE.BufferGeometry();
+  beamGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  beamGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  }));
+  g.add(beam);
+
+  // Kinosessel in zwei Blöcken mit Mittelgang
+  const seats = [];
+  for (const rz of [IZ - 1.6, IZ - 0.1, IZ + 1.4]) for (const bx of [-1, 1]) for (let k = 0; k < 5; k++) {
+    const x = bx * (1.56 + k * 0.62);
+    seats.push(boxGeo(0.54, 0.12, 0.5, x, 0.45, rz));
+    seats.push(boxGeo(0.54, 0.64, 0.1, x, 0.8, rz + 0.25));
+    seats.push(boxGeo(0.06, 0.5, 0.46, x + 0.3, 0.3, rz));
+  }
+  g.add(mesh(mergeGeometries(seats), mat('#8a2f33', { roughness: 0.85 })));
+
+  // Deckenleuchten
+  const downs = ROOM_LIGHTS.map(([x, , z]) => new THREE.CylinderGeometry(0.16, 0.16, 0.04, 16).translate(x, rh - 0.02, z));
+  g.add(new THREE.Mesh(mergeGeometries(downs), new THREE.MeshBasicMaterial({ color: '#ffe8c4' })));
+
+  // Ausgang hinten rechts (klickbar)
+  g.add(box(1.15, 2.3, 0.08, mat('#3b3f46'), 3.6, 1.15, IZ + d / 2 - 0.04, { cast: false }));
+  const exit = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.33, 0.06), new THREE.MeshBasicMaterial({ map: exitSignTexture() }));
+  exit.position.set(3.6, 2.75, IZ + d / 2 - 0.05);
+  exit.rotation.y = Math.PI;
+  exit.userData.exit = true;
+  g.add(exit);
+
+  // Plakat an der linken Wand
+  const posterMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.8 });
+  const poster = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.77), posterMat);
+  poster.position.set(-w / 2 + 0.02, 2.25, IZ - 2.2);
+  poster.rotation.y = Math.PI / 2;
+  g.add(poster);
+
+  // Licht der Leinwand
+  const screenLight = new THREE.PointLight('#dfe8ff', 0, 16, 1.4);
+  screenLight.position.set(0, SCREEN.y, SCREEN_Z + 1.6);
+  g.add(screenLight);
+
+  scene.add(g);
+  room = { sideMat, slideMat, posterMat, exit, screenLight };
+
+  // Live-Demo als echte Webseite auf der Leinwand
+  cssRenderer = new CSS3DRenderer();
+  cssRenderer.domElement.className = 'css3d';
+  cssRenderer.domElement.hidden = true;
+  canvas.after(cssRenderer.domElement);
+  cssScene = new THREE.Scene();
+  screenFrame = document.createElement('iframe');
+  screenFrame.title = 'Live-Demo';
+  screenFrame.setAttribute('allow', 'fullscreen; clipboard-write');
+  screenFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock');
+  screenFrame.referrerPolicy = 'no-referrer';
+  const wrap = document.createElement('div');
+  wrap.className = 'screen-frame';
+  wrap.append(screenFrame);
+  screenObj = new CSS3DObject(wrap);
+  screenObj.position.set(0, SCREEN.y, SCREEN_Z + 0.005);
+  screenObj.scale.setScalar(SCREEN.w / 1280);
+  cssScene.add(screenObj);
+}
+
+function setMap(m, tex) {
+  // Plakat und Folie werden pro Haus neu gezeichnet, Fassadentexturen bleiben im Cache
+  if (m.map && m.map !== tex && ![...facadeTexCache.values()].includes(m.map)) m.map.dispose();
+  m.map = tex;
+  m.needsUpdate = true;
+}
+
+function configureRoom(p) {
+  const material = p.house.material ?? materialFor(p.language);
+  setMap(room.sideMat, facadeTexture(material, p.house.facade));
+  room.sideMat.color.set(material === 'putz' ? p.house.facade : '#ffffff');
+  setMap(room.posterMat, posterTexture(p));
+  setMap(room.slideMat, slideTexture(p));
+  screenFrame.src = p.demo || 'about:blank';
+  cssRenderer.domElement.hidden = !p.demo;
+
+  $('#hud-num').textContent = String(p.number);
+  $('#hud-title').textContent = p.title;
+  $('#hud-sub').textContent = p.demo
+    ? 'Live-Demo läuft auf der Leinwand. Klick hinein, um sie zu bedienen.'
+    : 'Noch keine Live-Demo – auf der Leinwand steht, was fehlt.';
+  const open = $('#hud-open');
+  open.href = p.demo || p.url;
+  open.textContent = p.demo ? 'In neuem Tab ↗' : 'Repository ↗';
+  $('#hud-front').hidden = !p.demo;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function fade(on) {
+  $('#fade').classList.toggle('on', on);
+  return sleep(reduceMotion ? 0 : 380);
+}
+function flyToAsync(pose, dur, lock = false) {
+  return new Promise((resolve) => {
+    flyTo(pose, dur, lock);
+    tween.onDone = resolve;
+  });
+}
+
+async function enterHouse(i) {
+  if (busy || inside >= 0 || !renderer || !room) return;
+  const H = houses[i];
+  if (!H || H.p.house.floors === 0) return;
+  busy = true;
+  closeCard();
+  setHover(-1);
+  const d = H.p.house.depth / 2;
+  const at = H.group.localToWorld(new THREE.Vector3(0, EYE, d + 2.4));
+  const door = H.group.localToWorld(new THREE.Vector3(0, 1.6, d));
+  await flyToAsync({ x: at.x, z: at.z, y: EYE, yaw: Math.atan2(-(door.x - at.x), -(door.z - at.z)), pitch: 0 }, 1.1, true);
+  await fade(true);
+  inside = i;
+  configureRoom(H.p);
+  pos.set(0, EYE, IZ + 4.8);
+  camY = EYE; yaw = 0; pitch = 0.1;
+  velF = velS = wheelVel = 0;
+  envClock = Infinity; envNow = null;
+  placeLampLights();
+  document.body.classList.add('inside');
+  $('#inside-hud').hidden = false;
+  history.replaceState(null, '', `#${encodeURIComponent(H.p.name)}`);
+  await fade(false);
+  busy = false;
+}
+
+async function exitHouse() {
+  if (busy || inside < 0) return;
+  busy = true;
+  await fade(true);
+  const i = inside;
+  inside = -1;
+  tween = null;
+  screenFrame.src = 'about:blank';
+  cssRenderer.domElement.hidden = true;
+  $('#inside-hud').hidden = true;
+  document.body.classList.remove('inside');
+  const pose = poseFor(i);
+  pos.set(pose.x, EYE, pose.z);
+  camY = EYE; yaw = pose.yaw; pitch = pose.pitch;
+  velF = velS = wheelVel = 0;
+  envClock = Infinity; envNow = null;
+  placeLampLights();
+  select(i, { fly: false });
+  await fade(false);
+  busy = false;
+}
+
+function frontOfScreen() {
+  if (busy || inside < 0) return;
+  const vf = THREE.MathUtils.degToRad(camera.fov) / 2;
+  const hf = Math.atan(Math.tan(vf) * camera.aspect);
+  const dist = Math.max(SCREEN.h / 2 / Math.tan(vf) / 0.82, SCREEN.w / 2 / Math.tan(hf) / 0.94);
+  flyTo({ x: 0, z: Math.min(SCREEN_Z + dist, IZ + ROOM.d / 2 - 0.6), y: SCREEN.y - 0.15, yaw: 0, pitch: 0 }, 1.0);
+}
+
+function pickExit(cx, cy) {
+  if (!room) return false;
+  ndc.set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.intersectObject(room.exit, false).length > 0;
+}
+
+const _toScreen = new THREE.Vector3(), _fwd = new THREE.Vector3();
+function renderScreen() {
+  if (inside < 0 || cssRenderer.domElement.hidden) return;
+  // nur zeigen, wenn die Leinwand vor der Kamera liegt (CSS kennt keine Tiefe)
+  _toScreen.set(0, SCREEN.y, SCREEN_Z).sub(camera.position).normalize();
+  camera.getWorldDirection(_fwd);
+  screenObj.element.style.visibility = _toScreen.dot(_fwd) > 0.35 ? '' : 'hidden';
+  cssRenderer.render(cssScene, camera);
+}
+
 // ---------- Bewegung ----------
 
 const pos = new THREE.Vector3(0, EYE, 12);
@@ -953,7 +1330,7 @@ function poseFor(i) {
 }
 
 function flyTo(pose, dur = 1.4, lock = false) {
-  tween = { from: { x: pos.x, z: pos.z, y: camY, yaw, pitch }, to: pose, t: 0, dur: reduceMotion ? 0.001 : dur, lock };
+  tween = { from: { x: pos.x, z: pos.z, y: camY, yaw, pitch }, to: pose, t: 0, start: performance.now(), dur: reduceMotion ? 0.001 : dur, lock };
 }
 
 function angleLerp(a, b, t) {
@@ -1054,7 +1431,7 @@ function buildStrip() {
 const stripPct = (z) => clamp(((stripRange.z0 - z) / (stripRange.z0 - stripRange.z1)) * 100, 0, 100);
 
 function select(i, { fly = true } = {}) {
-  if (i < 0 || i >= houses.length) return;
+  if (i < 0 || i >= houses.length || (busy && fly)) return;
   selected = i;
   renderCard(houses[i].p, i);
   document.querySelectorAll('#dir-list li, .dot').forEach((n) => n.classList.toggle('selected', +n.dataset.i === i));
@@ -1076,7 +1453,9 @@ function renderCard(p, i) {
   const card = $('#card');
   const facts = [
     ['Commits', p.commits == null ? '–' : String(p.commits)],
-    ['Sprache', `${p.language || '–'} · ${MATERIALS[p.house.material ?? materialFor(p.language)].label}`],
+    ['Sprache', p.language
+      ? `${p.language} · ${MATERIALS[p.house.material ?? materialFor(p.language)].label}`
+      : `${MATERIALS[p.house.material ?? 'putz'].label} (ohne Sprache)`],
     ['Zuletzt aktiv', ago(p.pushedAt)],
   ];
   const team = (p.team ?? []).map((t) =>
@@ -1103,7 +1482,10 @@ function renderCard(p, i) {
     h('dl', { class: 'facts' }, ...facts.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v)))),
     team.length ? h('div', { class: 'team', 'aria-label': 'Team' }, ...team) : null,
     h('div', { class: 'actions' },
-      h('a', { class: 'btn primary', href: p.url, target: '_blank', rel: 'noopener' }, 'Repository öffnen ↗'),
+      p.house.floors > 0 && renderer
+        ? h('button', { class: 'btn primary', type: 'button', onclick: () => enterHouse(i) }, p.demo ? 'Eintreten · Live-Demo' : 'Eintreten')
+        : null,
+      h('a', { class: `btn ${p.house.floors > 0 && renderer ? '' : 'primary'}`, href: p.url, target: '_blank', rel: 'noopener' }, 'Repository öffnen ↗'),
       p.demo ? h('a', { class: 'btn', href: p.demo, target: '_blank', rel: 'noopener' }, 'Live-Demo ↗') : null,
     ),
     h('div', { class: 'card-nav' },
@@ -1144,7 +1526,8 @@ function setupInput() {
   const moveKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
-    if (e.key === 'Escape') { closeCard(); closeDirectoryOnMobile(); return; }
+    if (e.key === 'Escape') { if (inside >= 0) exitHouse(); else { closeCard(); closeDirectoryOnMobile(); } return; }
+    if ((e.code === 'KeyE' || e.key === 'Enter') && inside < 0 && selected >= 0 && e.target === document.body) { enterHouse(selected); return; }
     if (moveKeys.has(e.code) || e.code.startsWith('Shift')) {
       keys.add(e.code);
       if (tween && !tween.lock && moveKeys.has(e.code)) tween = null;
@@ -1178,7 +1561,13 @@ function setupInput() {
       }
       setHover(-1);
     } else if (e.pointerType === 'mouse') {
-      setHover(pick(e.clientX, e.clientY), e.clientX, e.clientY);
+      if (inside >= 0) {
+        const over = pickExit(e.clientX, e.clientY);
+        canvas.classList.toggle('over-house', over);
+        const tip = $('#tooltip');
+        tip.hidden = !over;
+        if (over) { tip.textContent = 'Ausgang – zurück auf die Straße'; tip.style.left = `${e.clientX}px`; tip.style.top = `${e.clientY}px`; }
+      } else setHover(pick(e.clientX, e.clientY), e.clientX, e.clientY);
     }
   });
   const end = (e) => {
@@ -1186,6 +1575,10 @@ function setupInput() {
     const click = drag.moved < 6;
     drag = null;
     canvas.classList.remove('dragging');
+    if (click && e.type === 'pointerup' && inside >= 0) {
+      if (pickExit(e.clientX, e.clientY)) exitHouse();
+      return;
+    }
     if (click && e.type === 'pointerup') {
       const i = pick(e.clientX, e.clientY);
       if (i >= 0) select(i);
@@ -1195,6 +1588,13 @@ function setupInput() {
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
   canvas.addEventListener('pointerleave', () => setHover(-1));
+  canvas.addEventListener('dblclick', (e) => {
+    if (inside >= 0) return;
+    const i = pick(e.clientX, e.clientY);
+    if (i >= 0) enterHouse(i);
+  });
+  $('#hud-exit').addEventListener('click', exitHouse);
+  $('#hud-front').addEventListener('click', frontOfScreen);
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     if (tween?.lock) return;
@@ -1212,13 +1612,14 @@ function setupInput() {
   addEventListener('resize', resize);
   addEventListener('hashchange', () => {
     const i = houses.findIndex((H) => H.p.name === decodeURIComponent(location.hash.slice(1)));
-    if (i >= 0 && i !== selected) select(i);
+    if (i >= 0 && i !== selected && inside < 0) select(i);
   });
 }
 
 function resize() {
   if (!renderer) return;
   renderer.setSize(innerWidth, innerHeight, false);
+  cssRenderer?.setSize(innerWidth, innerHeight);
   applyViewOffset();
 }
 
@@ -1240,7 +1641,8 @@ let lights;
 let lastNear = -1, nearClock = 0;
 function update(dt) {
   if (tween) {
-    tween.t = Math.min(1, tween.t + dt / tween.dur);
+    // nach Uhrzeit statt nach Bildern, damit Flüge auch bei Rucklern pünktlich enden
+    tween.t = Math.min(1, (performance.now() - tween.start) / (tween.dur * 1000));
     const k = ease(tween.t), f = tween.from, t = tween.to;
     pos.x = f.x + (t.x - f.x) * k;
     pos.z = f.z + (t.z - f.z) * k;
@@ -1248,7 +1650,11 @@ function update(dt) {
     yaw = angleLerp(f.yaw, t.yaw, k);
     pitch = f.pitch + (t.pitch - f.pitch) * k;
     velF = velS = wheelVel = 0;
-    if (tween.t >= 1) tween = null;
+    if (tween.t >= 1) {
+      const done = tween.onDone;
+      tween = null;
+      done?.();
+    }
   } else {
     let fIn = 0, sIn = 0, turn = 0;
     if (keys.has('KeyW') || keys.has('ArrowUp')) fIn += 1;
@@ -1267,10 +1673,16 @@ function update(dt) {
     pos.x += (-Math.sin(yaw) * f + Math.cos(yaw) * velS) * dt;
     pos.z += (-Math.cos(yaw) * f - Math.sin(yaw) * velS) * dt;
     walked += Math.hypot(f, velS) * dt;
+    if (Math.abs(f) + Math.abs(velS) > 0.2) camY += (EYE - camY) * Math.min(1, dt * 2.5);
   }
   if (!tween?.lock) {
-    pos.x = clamp(pos.x, -(CURB - 0.5), CURB - 0.5);
-    pos.z = clamp(pos.z, bounds.minZ, bounds.maxZ);
+    if (inside >= 0) {
+      pos.x = clamp(pos.x, -(ROOM.w / 2 - 0.6), ROOM.w / 2 - 0.6);
+      pos.z = clamp(pos.z, SCREEN_Z + 1.2, IZ + ROOM.d / 2 - 0.6);
+    } else {
+      pos.x = clamp(pos.x, -(CURB - 0.5), CURB - 0.5);
+      pos.z = clamp(pos.z, bounds.minZ, bounds.maxZ);
+    }
   }
   const bob = reduceMotion || tween ? 0 : Math.sin(walked * 1.9) * 0.035;
   camera.position.set(pos.x, camY + bob, pos.z);
@@ -1351,7 +1763,7 @@ async function main() {
   lights = setupLights();
 
   houses = data.projects.map((p, i) =>
-    buildHouse(p, i, signTexture(p.number, p.title, p.house.floors === 0 ? 'Baustelle' : null), plateTexture(p.number)),
+    buildHouse(p, i, signTexture(p.number, p.title, p.house.floors === 0 ? 'Baustelle' : p.demo ? 'Live-Demo drinnen' : null), plateTexture(p.number)),
   );
   const n = houses.length;
   buildPlot(n, 'Bauplatz frei');
@@ -1360,6 +1772,7 @@ async function main() {
   const { turnZ } = buildWorld(endZ, data);
   buildTrees(endZ, turnZ);
   buildLamps(n);
+  buildRoom();
   bounds = { minZ: turnZ + 2, maxZ: 16 };
   setupDaylight();
 
@@ -1385,6 +1798,7 @@ async function main() {
     last = now;
     update(dt);
     renderer.render(scene, camera);
+    renderScreen();
   });
   requestAnimationFrame(() => $('#loading').classList.add('done'));
 }

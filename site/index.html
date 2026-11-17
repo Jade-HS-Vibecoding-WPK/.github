@@ -38,11 +38,12 @@
         <li><span class="key">A</span><span class="key">D</span> seitlich · <span class="key">←</span><span class="key">→</span> drehen · <span class="key">⇧</span> rennen</li>
         <li>Ziehen mit der Maus: umschauen</li>
         <li>Klick auf ein Haus: Projekt öffnen</li>
+        <li>Doppelklick oder <span class="key">E</span>: ins Haus gehen · <span class="key">Esc</span> wieder raus</li>
       </ul>
       <ul class="controls only-coarse">
         <li>Wischen hoch/runter: gehen</li>
         <li>Wischen links/rechts: umschauen</li>
-        <li>Haus antippen: Projekt öffnen</li>
+        <li>Haus antippen: Projekt öffnen, dann „Eintreten“</li>
       </ul>
       <ul class="legend-items">
         <li><b>Geschosse</b> = Commits. Jede Verdopplung bringt ein Geschoss.</li>
@@ -57,6 +58,7 @@
           <span class="mat"><i class="sw metall"></i>Metall Java, C#, C++ …</span>
         </li>
         <li><b>Licht</b> = echte Tageszeit in Oldenburg. Abends gehen die Laternen an, nachts leuchten die Schilder.</li>
+        <li><b>Drinnen</b> wirft ein Beamer die Live-Demo auf die Leinwand, wenn das Team eine hat.</li>
       </ul>
     </details>
   </header>
@@ -77,6 +79,18 @@
   <article class="panel card" id="card" hidden aria-labelledby="card-title" tabindex="-1"></article>
 
   <div class="tooltip" id="tooltip" hidden></div>
+
+  <div class="panel inside-hud" id="inside-hud" hidden>
+    <span class="plate" id="hud-num" aria-hidden="true"></span>
+    <div class="hud-text"><b id="hud-title"></b><small id="hud-sub"></small></div>
+    <div class="hud-actions">
+      <button type="button" class="btn" id="hud-front">Vor die Leinwand</button>
+      <a class="btn" id="hud-open" target="_blank" rel="noopener">In neuem Tab ↗</a>
+      <button type="button" class="btn primary" id="hud-exit">Hinausgehen</button>
+    </div>
+  </div>
+
+  <div class="fade" id="fade" aria-hidden="true"></div>
 
   <div class="touchpad" aria-hidden="true">
     <button data-key="KeyW" aria-label="Vorwärts">▲</button>
