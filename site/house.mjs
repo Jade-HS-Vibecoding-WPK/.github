@@ -151,6 +151,10 @@ export function houseFor(name, commits, empty, language, style) {
     floors: empty ? 0 : floorsFor(commits),
     seed: hash(name),
   };
+  if (style === 'voxel') {
+    // Block-Stil: alles auf ganze Meter (1 Block = 1 m), Gründach
+    Object.assign(house, { style, width: Math.round(house.width), depth: Math.round(house.depth), roof: 'flat' });
+  }
   if (style === 'nurdach') {
     Object.assign(house, {
       style,

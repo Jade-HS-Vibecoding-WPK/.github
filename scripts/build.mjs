@@ -252,6 +252,33 @@ function facadeFill(h) {
   return `url(#${id})`;
 }
 
+// Block-Stil: Dielen, Stammpfosten, Balkenkranz je Geschoss, Glasblöcke, Gründach mit Baum
+function voxelSvg(h, x, groundY, s, w) {
+  const out = [];
+  const drawn = drawnFloors(h);
+  const B = s; // ein Block = ein Meter
+  const y0 = groundY - drawn * FLOOR_H * B;
+  const log = '#86643d';
+  out.push(`<rect class="ink" x="${x}" y="${y0}" width="${w}" height="${groundY - y0}" fill="#d2ab78"/>`);
+  for (let f = 0; f < drawn; f++) out.push(`<rect x="${x}" y="${groundY - f * FLOOR_H * B - B}" width="${w}" height="${B}" fill="${log}"/>`);
+  out.push(`<rect x="${x}" y="${y0}" width="${B}" height="${groundY - y0}" fill="${log}"/>`);
+  out.push(`<rect x="${x + w - B}" y="${y0}" width="${B}" height="${groundY - y0}" fill="${log}"/>`);
+  const doorI = Math.floor(h.width / 2);
+  for (let f = 0; f < drawn; f++) {
+    for (let i = 1; i < h.width - 1; i += 2) {
+      if (f === 0 && Math.abs(i - doorI) < 1.5) continue;
+      out.push(`<rect x="${x + i * B}" y="${groundY - (f * FLOOR_H + 3) * B}" width="${B}" height="${2 * B}" fill="#a9cddd"/>`);
+    }
+  }
+  out.push(`<rect x="${x + doorI * B}" y="${groundY - 2 * B}" width="${B}" height="${2 * B}" fill="#7a5533"/>`);
+  out.push(`<rect class="ink" x="${x}" y="${y0 - B}" width="${w}" height="${B}" fill="#8a5a32"/>`);
+  out.push(`<rect x="${x}" y="${y0 - B}" width="${w}" height="${B * 0.3}" fill="#5c9c33"/>`);
+  out.push(`<rect x="${x + B}" y="${y0 - 3 * B}" width="${B}" height="${2 * B}" fill="${log}"/>`);
+  out.push(`<rect x="${x}" y="${y0 - 4.5 * B}" width="${3 * B}" height="${2 * B}" fill="#4a8228"/>`);
+  out.push(`<rect x="${x + B}" y="${y0 - 5.5 * B}" width="${B}" height="${B}" fill="#4a8228"/>`);
+  return { svg: out.join(''), top: y0 - 5.5 * B };
+}
+
 function houseSvg(p, x, groundY, s) {
   const h = p.house;
   const w = h.width * s;
@@ -288,6 +315,7 @@ function houseSvg(p, x, groundY, s) {
     out.push(`<polyline class="roofline" points="${x - o},${groundY + 1} ${cx},${groundY - hp - hp * k} ${x + w + o},${groundY + 1}" stroke="${h.roofColor}"/>`);
     return { svg: out.join(''), top: groundY - hp - hp * k };
   }
+  if (h.style === 'voxel') return voxelSvg(h, x, groundY, s, w);
   const drawn = drawnFloors(h);
   const bh = drawn * FLOOR_H * s;
   const y0 = groundY - bh;
@@ -357,7 +385,7 @@ function streetSvg() {
   // Platz für die schrägen Beschriftungen (40°) aus der Textlänge schätzen
   const labelLen = (p) => (String(p.number).length + 1 + p.title.length) * 7.4;
   const labelRise = Math.ceil(Math.max(60, ...projects.map(labelLen)) * Math.sin(Math.PI * 40 / 180)) + 24;
-  const tallest = Math.max(2, ...projects.map((p) => (p.house.floors === 0 ? 4.8 : p.house.style === 'nurdach' ? p.house.height / FLOOR_H : drawnFloors(p.house))));
+  const tallest = Math.max(2, ...projects.map((p) => (p.house.floors === 0 ? 4.8 : p.house.style === 'nurdach' ? p.house.height / FLOOR_H : p.house.style === 'voxel' ? drawnFloors(p.house) + 0.5 : drawnFloors(p.house))));
   const maxHouse = tallest * FLOOR_H * s + 10 * 0.42 * s;
   const rowH = labelRise + maxHouse + 58;
   const rowWidths = rows.map((r) => {

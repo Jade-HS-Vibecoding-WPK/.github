@@ -5,6 +5,7 @@
   "siteUrl": "https://jade-hs-vibecoding-wpk.github.io/.github/",
   "exclude": [".github"],
   "overrides": {
-    "Bau-Normen-KI": { "team": ["Freckle02"], "house": "nurdach" }
+    "Bau-Normen-KI": { "team": ["Freckle02"], "house": "nurdach" },
+    "urban-analysis-plugin": { "house": "voxel" }
   }
 }

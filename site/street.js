@@ -562,6 +562,167 @@ function buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex) {
   addDoor(g, front, plateTex);
 }
 
+// ---------- Block-Stil (Test für Haus 11) ----------
+// Alles in 1-m-Blöcken mit 16×16-Pixeltexturen; ein Geschoss = 3 Blöcke.
+// Das Gründach nutzt den Erdblock aus dem Icon des Teams (urban-analysis-plugin).
+
+const pixelTexCache = new Map();
+const blockLitMats = [];
+function pixelTexture(key, draw, w = 16, hh = 16) {
+  if (pixelTexCache.has(key)) return pixelTexCache.get(key);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = hh;
+  const g = c.getContext('2d');
+  draw(g, rng(hash(key)), c);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = maxAniso;
+  pixelTexCache.set(key, t);
+  return t;
+}
+const pix = (g, x, y, col) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); };
+const jit = (hex, r, amt) => shade(hex, (r() - 0.5) * amt);
+
+function planksTex(color) {
+  return pixelTexture(`planks${color}`, (g, r) => {
+    const base = '#d2ab78'; // helle Dielen
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) pix(g, x, y, jit(base, r, 0.1));
+    for (let row = 0; row < 4; row++) {
+      for (let x = 0; x < 16; x++) pix(g, x, row * 4 + 3, shade(base, -0.24));
+      const j = row % 2 ? 4 : 12;
+      for (let y = row * 4; y < row * 4 + 3; y++) pix(g, j, y, shade(base, -0.18));
+    }
+    for (let i = 0; i < 10; i++) pix(g, Math.floor(r() * 16), Math.floor(r() * 4) * 4 + Math.floor(r() * 3), shade(base, -0.1));
+  });
+}
+function logTex(horizontal) {
+  return pixelTexture(`log${horizontal}`, (g, r) => {
+    const base = '#86643d';
+    for (let a = 0; a < 16; a++) for (let b = 0; b < 16; b++) {
+      const groove = a % 5 === 1 || (a % 5 === 3 && r() < 0.4);
+      const col = shade(base, (groove ? -0.35 : 0) + (r() - 0.5) * 0.18);
+      horizontal ? pix(g, b, a, col) : pix(g, a, b, col);
+    }
+  });
+}
+function glassTex(lit) {
+  return pixelTexture(`glass${lit}`, (g, r) => {
+    const base = lit ? '#ffd98a' : '#a9cddd', edge = lit ? '#c98f3a' : '#e9f4f8', hi = lit ? '#fff3cf' : '#ffffff';
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) pix(g, x, y, jit(base, r, 0.06));
+    for (let i = 0; i < 16; i++) { pix(g, i, 0, edge); pix(g, i, 15, edge); pix(g, 0, i, edge); pix(g, 15, i, edge); }
+    for (const [x, y] of [[3, 4], [4, 3], [4, 5], [5, 4], [10, 9], [11, 8], [12, 7]]) pix(g, x, y, hi);
+  });
+}
+function doorTex() {
+  return pixelTexture('door', (g, r) => {
+    const wood = '#7a5533';
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 16; x++) pix(g, x, y, jit(wood, r, 0.14));
+    for (let y = 0; y < 32; y++) { pix(g, 0, y, shade(wood, -0.4)); pix(g, 15, y, shade(wood, -0.4)); pix(g, 7, y, shade(wood, -0.25)); }
+    for (let x = 0; x < 16; x++) { pix(g, x, 0, shade(wood, -0.4)); pix(g, x, 31, shade(wood, -0.4)); pix(g, x, 16, shade(wood, -0.3)); }
+    for (const [x0, y0] of [[2, 3], [9, 3]]) for (let y = y0; y < y0 + 8; y++) for (let x = x0; x < x0 + 5; x++) pix(g, x, y, '#a9cddd');
+    pix(g, 12, 19, '#d8c070'); pix(g, 12, 20, '#b09a50');
+  }, 16, 32);
+}
+function grassTopTex() {
+  return pixelTexture('grassTop', (g, r) => {
+    const cols = ['#5c9c33', '#5c9c33', '#86c74f', '#3b6b1f'];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) pix(g, x, y, cols[Math.floor(r() * cols.length)]);
+  });
+}
+function dirtTex() {
+  return pixelTexture('dirt', (g, r) => {
+    const cols = ['#8a5a32', '#8a5a32', '#5a3a1f', '#b07b4b', '#3e2814'];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) pix(g, x, y, cols[Math.floor(r() * cols.length)]);
+  });
+}
+function leavesTex() {
+  return pixelTexture('leaves', (g, r) => {
+    const cols = ['#3b6b1f', '#5c9c33', '#4a8228', '#86c74f', '#2c5217'];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) pix(g, x, y, cols[Math.floor(r() * cols.length)]);
+  });
+}
+// Seitenansicht des Erdblocks: das SVG-Icon des Teams, pixelgenau auf 16×16 gezeichnet
+function erdblockTex() {
+  return pixelTexture('erdblock', (g, r, c) => {
+    g.drawImage(dirtTex().image, 0, 0);
+    const img = new Image();
+    img.onload = () => { g.clearRect(0, 0, 16, 16); g.drawImage(img, 0, 0, 16, 16); pixelTexCache.get('erdblock').needsUpdate = true; };
+    img.src = './blocks/erdblock.svg';
+  });
+}
+function blockMat(tex, opts = {}) {
+  return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, ...opts });
+}
+let erdMats = null;
+function erdblockMats() {
+  if (!erdMats) {
+    const side = blockMat(erdblockTex()), top = blockMat(grassTopTex()), bottom = blockMat(dirtTex());
+    erdMats = [side, side, top, bottom, side, side];
+  }
+  return erdMats;
+}
+function blockBox(w, hh, d, material, x, y, z) {
+  const m = mesh(meterUVs(new THREE.BoxGeometry(w, hh, d), w, hh, d), material);
+  m.position.set(x, y, z);
+  return m;
+}
+
+function buildVoxel(g, hs, r, active, plateTex) {
+  const W = hs.width, D = hs.depth, H = hs.floors * FLOOR_H, front = D / 2;
+  const planks = blockMat(planksTex(hs.facade));
+  const logV = blockMat(logTex(false)), logH = blockMat(logTex(true));
+  g.add(blockBox(W, H, D, planks, 0, H / 2, 0));
+  // Eckpfosten aus Stämmen und ein Balkenkranz auf jeder Geschossgrenze
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(blockBox(1.04, H, 1.04, logV, sx * (W / 2 - 0.5), H / 2, sz * (D / 2 - 0.5)));
+  for (let f = 0; f < hs.floors; f++) g.add(blockBox(W + 0.02, 1, D + 0.02, logH, 0, f * FLOOR_H + 0.5, 0));
+
+  // Fenster: je 1×2 Blöcke, auf jedem zweiten Block zwischen den Pfosten
+  const dark = [], lit = [];
+  const add = (w, d, x, y, z) => (active && r() < 0.55 ? lit : dark).push(meterUVs(boxGeo(w, 2, d, x, y, z), w, 2, d));
+  const doorX = W % 2 ? 0 : -0.5;
+  for (let f = 0; f < hs.floors; f++) {
+    const y = f * FLOOR_H + 2;
+    for (let i = 1; i < W - 1; i += 2) {
+      const x = -W / 2 + 0.5 + i;
+      if (f === 0 && Math.abs(x - doorX) < 1.5) continue;
+      for (const sz of [-1, 1]) add(1, 0.08, x, y, sz * (front + 0.03));
+    }
+    for (let i = 1; i < D - 1; i += 2) {
+      const z = -D / 2 + 0.5 + i;
+      for (const sx of [-1, 1]) add(0.08, 1, sx * (W / 2 + 0.03), y, z);
+    }
+  }
+  if (dark.length) g.add(mesh(mergeGeometries(dark), blockMat(glassTex(false), { roughness: 0.4 }), { cast: false }));
+  if (lit.length) {
+    const tex = glassTex(true);
+    const m = blockMat(tex, { emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.85, roughness: 0.6 });
+    blockLitMats.push(m);
+    g.add(mesh(mergeGeometries(lit), m, { cast: false }));
+  }
+
+  // Tür (1×2 Blöcke), Hausnummer darüber
+  g.add(box(1, 2, 0.1, blockMat(doorTex()), doorX, 1, front + 0.05, { cast: false }));
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3), signMaterial(plateTex, 0.5));
+  plate.position.set(doorX, 2.4, front + 0.06);
+  g.add(plate);
+
+  // Gründach aus Erdblöcken mit kleinem Baum
+  g.add(blockBox(W, 1, D, erdblockMats(), 0, H + 0.5, 0));
+  const tx = -W / 2 + 1.5, tz = -D / 2 + 1.5;
+  g.add(blockBox(1, 2, 1, logV, tx, H + 2, tz));
+  g.add(blockBox(3, 2, 3, blockMat(leavesTex()), tx, H + 3.5, tz));
+  g.add(blockBox(1, 1, 1, blockMat(leavesTex()), tx, H + 5, tz));
+
+  // Vorgarten: eine Reihe Erdblöcke statt Hecke, Weg in der Mitte frei
+  for (let i = 0; i < W; i++) {
+    const x = -W / 2 + 0.5 + i;
+    if (Math.abs(x - doorX) < 1.5) continue;
+    g.add(blockBox(1, 1, 1, erdblockMats(), x, 0.5, front + YARD - 0.5));
+  }
+}
+
 function buildHouse(p, index, signTex, plateTex) {
   const hs = p.house;
   const side = index % 2 === 0 ? -1 : 1;
@@ -593,6 +754,8 @@ function buildHouse(p, index, signTex, plateTex) {
 
   if (nurdach) {
     buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex);
+  } else if (hs.style === 'voxel' && hs.floors > 0) {
+    buildVoxel(g, hs, r, active, plateTex);
   } else if (hs.floors > 0) {
     g.add(box(W + 0.3, 0.3, D + 0.3, mat('#8f8a82'), 0, 0.15, 0));
     const body = mesh(meterUVs(new THREE.BoxGeometry(W, H, D), W, H, D), bodyMat);
@@ -666,7 +829,7 @@ function buildHouse(p, index, signTex, plateTex) {
   // Vorgarten: Weg und Hecken
   g.add(box(1.5, 0.05, YARD, mat('#cfc8bb'), 0, 0.025, front + YARD / 2, { cast: false }));
   const hedgeW = (W - 1.5) / 2 - 0.4;
-  if (hedgeW > 0.6 && hs.floors > 0) {
+  if (hedgeW > 0.6 && hs.floors > 0 && hs.style !== 'voxel') {
     const hedge = mat(r() < 0.5 ? '#7f9a63' : '#8aa56c');
     for (const s of [-1, 1]) g.add(box(hedgeW, 0.75, 0.55, hedge, s * (0.75 + 0.2 + hedgeW / 2), 0.375, front + YARD - 0.4));
   }
@@ -971,6 +1134,7 @@ function updateEnvironment(dt) {
   sun.color.copy(e.sun);
   sun.intensity = e.sunI;
   litMat.emissiveIntensity = e.win;
+  for (const m of blockLitMats) m.emissiveIntensity = e.win;
   for (const m of glowMats) m.emissiveIntensity = e.glow;
   if (lamps) {
     lamps.headMat.emissiveIntensity = e.lamps * 3;
@@ -1515,7 +1679,9 @@ function renderCard(p, i) {
     ['Commits', p.commits == null ? '–' : String(p.commits)],
     p.house.style === 'nurdach' && p.house.floors > 0
       ? ['Bauweise', `Nurdachhaus · ${p.house.windows} ${p.house.windows === 1 ? 'Fensterabteil' : 'Fensterabteile'}`]
-      : null,
+      : p.house.style === 'voxel' && p.house.floors > 0
+        ? ['Bauweise', 'Block-Stil · Gründach aus dem Erdblock des Teams']
+        : null,
     ['Sprache', p.language
       ? `${p.language} · ${MATERIALS[p.house.material ?? materialFor(p.language)].label}`
       : `${MATERIALS[p.house.material ?? 'putz'].label} (ohne Sprache)`],
