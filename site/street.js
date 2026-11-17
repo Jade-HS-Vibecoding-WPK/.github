@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
-import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor } from './house.mjs';
+import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor, nurdachCells, insetPolygon } from './house.mjs';
 
 // ---------- Maße der Straße (Meter) ----------
 const STREET_HALF = 3.6;               // halbe Fahrbahn
@@ -502,11 +502,72 @@ function signMaterial(tex, roughness = 0.6) {
   return m;
 }
 
+/** Flaches Polygon (Giebelkoordinaten in Metern) als dünne Platte vor der Fassade. */
+function plateGeo(poly, z, depth, hole = null) {
+  const shape = new THREE.Shape(poly.map(([x, y]) => new THREE.Vector2(x, y)));
+  if (hole) shape.holes.push(new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, y))));
+  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  geo.translate(0, 0, z);
+  return geo;
+}
+
+function addDoor(g, front, plateTex) {
+  g.add(box(1.4, 2.45, 0.08, frameMat, 0, 1.5, front + 0.02, { cast: false }));
+  g.add(box(1.15, 2.25, 0.12, mat('#6b4f3a', { roughness: 0.7 }), 0, 1.42, front + 0.04, { cast: false }));
+  g.add(box(1.9, 0.18, 0.7, mat('#b9b3a8'), 0, 0.09, front + 0.35));
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3), signMaterial(plateTex, 0.5));
+  plate.position.set(0, 2.12, front + 0.105);
+  g.add(plate);
+}
+
+/** Nurdachhaus: Dachflächen bis zum Boden, Giebel zur Straße. Wächst mit Fensterabteilen statt Geschossen. */
+function buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex) {
+  const W = hs.width, Hp = hs.height, D = hs.depth, front = D / 2;
+  const half = W / 2, ang = Math.atan2(Hp, half);
+  const t = 0.3, over = 0.8;
+  g.add(box(W + 0.8, 0.25, D + 0.4, mat('#8f8a82'), 0, 0.125, 0));
+  g.add(prism([[-half, 0], [half, 0], [0, Hp]], D, bodyMat));
+
+  // Dachflächen vom First bis in den Boden, vorne und hinten weit überstehend
+  const L = Math.hypot(half, Hp), a = t, b = 0.45;
+  const u = (L + b - a) / 2;
+  const trim = mat('#efe9dc', { roughness: 0.8 });
+  for (const s of [-1, 1]) {
+    const dx = s * Math.cos(ang), dy = -Math.sin(ang);
+    const nx = s * Math.sin(ang), ny = Math.cos(ang);
+    const x = dx * u + nx * t / 2, y = Hp + dy * u + ny * t / 2;
+    const slab = box(L + a + b, t, D + 2 * over, roofMat, x, y, 0);
+    slab.rotation.z = -s * ang;
+    g.add(slab);
+    // helle Stirnbretter an der Dachkante
+    for (const zz of [front + over, -front - over]) {
+      const board = box(L + a + b, t + 0.06, 0.1, trim, x, y, zz + Math.sign(zz) * 0.05, { cast: false });
+      board.rotation.z = -s * ang;
+      g.add(board);
+    }
+  }
+  g.add(box(0.7, 0.3, D + 2 * over + 0.2, mat('#3d3a36', { roughness: 0.7 }), 0, Hp + t / Math.cos(ang) - 0.2, 0));
+
+  // Fensterabteile im Giebel, eins pro Verdopplung der Commits
+  const frames = [], dark = [], lit = [];
+  nurdachCells().slice(0, hs.windows ?? 0).forEach((cell) => {
+    const glass = insetPolygon(cell, 0.17);
+    frames.push(plateGeo(insetPolygon(cell, 0.05), front, 0.12, glass)); // Rahmen als Ring
+    (active && r() < 0.6 ? lit : dark).push(plateGeo(glass, front, 0.05));
+  });
+  if (frames.length) g.add(mesh(mergeGeometries(frames), frameMat, { cast: false }));
+  if (dark.length) g.add(mesh(mergeGeometries(dark), glassMat, { cast: false }));
+  if (lit.length) g.add(mesh(mergeGeometries(lit), litMat, { cast: false }));
+
+  addDoor(g, front, plateTex);
+}
+
 function buildHouse(p, index, signTex, plateTex) {
   const hs = p.house;
   const side = index % 2 === 0 ? -1 : 1;
   const z = START_Z - index * STEP_Z;
-  const W = hs.width, D = hs.depth, H = hs.floors * FLOOR_H;
+  const nurdach = hs.style === 'nurdach' && hs.floors > 0;
+  const W = hs.width, D = hs.depth, H = nurdach ? hs.height : hs.floors * FLOOR_H;
   const r = rng(hs.seed);
   const active = p.pushedAt && Date.now() - Date.parse(p.pushedAt) < 24 * 3600 * 1000;
 
@@ -526,9 +587,13 @@ function buildHouse(p, index, signTex, plateTex) {
   const roofMat = mat(hs.roofColor, { roughness: 0.8 });
   const front = D / 2;
   // Ecke Richtung Straßeneingang (für das Ausleger-Schild)
-  const cornerX = side < 0 ? -(W / 2 - 0.6) : W / 2 - 0.6;
+  // (beim Nurdachhaus dort, wo der Giebel in Auslegerhöhe noch breit genug ist)
+  const cornerOff = nurdach ? (W / 2) * (1 - 3.25 / H) - 0.35 : W / 2 - 0.6;
+  const cornerX = side < 0 ? -cornerOff : cornerOff;
 
-  if (hs.floors > 0) {
+  if (nurdach) {
+    buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex);
+  } else if (hs.floors > 0) {
     g.add(box(W + 0.3, 0.3, D + 0.3, mat('#8f8a82'), 0, 0.15, 0));
     const body = mesh(meterUVs(new THREE.BoxGeometry(W, H, D), W, H, D), bodyMat);
     body.position.y = H / 2;
@@ -563,12 +628,7 @@ function buildHouse(p, index, signTex, plateTex) {
     if (lit.length) g.add(mesh(mergeGeometries(lit), litMat, { cast: false }));
 
     // Tür, Stufe, Hausnummer
-    g.add(box(1.4, 2.45, 0.08, frameMat, 0, 1.5, front + 0.02, { cast: false }));
-    g.add(box(1.15, 2.25, 0.12, mat('#6b4f3a', { roughness: 0.7 }), 0, 1.42, front + 0.04, { cast: false }));
-    g.add(box(1.9, 0.18, 0.7, mat('#b9b3a8'), 0, 0.09, front + 0.35));
-    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3), signMaterial(plateTex, 0.5));
-    plate.position.set(0, 2.12, front + 0.105);
-    g.add(plate);
+    addDoor(g, front, plateTex);
 
     // Dach
     const roof = hs.ridge === 'street'
@@ -1319,7 +1379,7 @@ let bounds = { minZ: -100, maxZ: 16 };
 
 function poseFor(i) {
   const H = houses[i];
-  const floors = H.p.house.floors || 2;
+  const floors = H.p.house.style === 'nurdach' ? 3 : H.p.house.floors || 2;
   const portrait = innerWidth < innerHeight;
   const back = (6.5 + clamp(floors - 2, 0, 6) * 1.3) * (portrait ? 1.45 : 1);
   const x = -H.side * (portrait ? 3.2 : 1.4), z = H.z + back;
@@ -1453,11 +1513,14 @@ function renderCard(p, i) {
   const card = $('#card');
   const facts = [
     ['Commits', p.commits == null ? '–' : String(p.commits)],
+    p.house.style === 'nurdach' && p.house.floors > 0
+      ? ['Bauweise', `Nurdachhaus · ${p.house.windows} ${p.house.windows === 1 ? 'Fensterabteil' : 'Fensterabteile'}`]
+      : null,
     ['Sprache', p.language
       ? `${p.language} · ${MATERIALS[p.house.material ?? materialFor(p.language)].label}`
       : `${MATERIALS[p.house.material ?? 'putz'].label} (ohne Sprache)`],
     ['Zuletzt aktiv', ago(p.pushedAt)],
-  ];
+  ].filter(Boolean);
   const team = (p.team ?? []).map((t) =>
     h('a', { href: t.url, target: '_blank', rel: 'noopener' },
       h('img', { src: `${t.avatar}${t.avatar.includes('?') ? '&' : '?'}s=64`, alt: '', loading: 'lazy', width: 26, height: 26 }),

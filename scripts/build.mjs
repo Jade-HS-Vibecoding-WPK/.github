@@ -7,7 +7,7 @@
 // Ohne Token klappt es auch (60 API-Aufrufe/Stunde).
 
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
-import { houseFor, prettyTitle, FLOOR_H } from '../site/house.mjs';
+import { houseFor, prettyTitle, FLOOR_H, nurdachCells, insetPolygon } from '../site/house.mjs';
 
 const root = new URL('../', import.meta.url);
 const config = JSON.parse(await readFile(new URL('street.config.json', root), 'utf8'));
@@ -63,11 +63,27 @@ function readmeSummary(md, repoName) {
   const clean = md.replace(/<!--[\s\S]*?-->/g, '').replace(/```[\s\S]*?```/g, '');
   const blocks = clean.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
-  for (const b of blocks) {
+  // Navigationsleisten (nur Links, Trenner, Abzeichen) zählen nicht als Beschreibung
+  const linkless = (b) =>
+    stripMarkdown(b.replace(/<a[\s>][\s\S]*?<\/a>/gi, '').replace(/\[[^\]]*\]\([^)]*\)/g, '').replace(/&nbsp;|[·|•]/g, ' '));
+  const isList = (b) => /^[-*+]\s+/.test(b);
+  // Kopf eines Listenpunkts: fetter Teil oder Text bis zum ersten Gedankenstrich
+  const itemHead = (line) => {
+    const bold = line.match(/^\s*[-*+]\s+\*\*(.+?)\*\*/);
+    return stripMarkdown(bold ? bold[1] : line.replace(/^\s*[-*+]\s+/, '').split(/\s[–—-]\s|:/)[0]);
+  };
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
     if (/^(#|=|-{3,}|\||<img|!\[|\[!\[)/.test(b)) continue;
-    const text = stripMarkdown(b.replace(/^[-*+]\s+/gm, ''));
+    if (linkless(b).length < 12) continue;
+    let text = stripMarkdown(b.replace(/^[-*+]\s+/gm, ''));
     if (text.length < 12) continue;
     if (norm(text) === norm(repoName)) continue;
+    // „Ein Werkzeug für …:“ gefolgt von einer Liste → die Listenpunkte kurz anhängen
+    if (text.endsWith(':') && blocks[i + 1] && isList(blocks[i + 1])) {
+      const heads = blocks[i + 1].split(/\r?\n/).filter((l) => /^\s*[-*+]\s+/.test(l)).map(itemHead).filter(Boolean);
+      if (heads.length) text = `${text} ${heads.join(', ')}`;
+    }
     return truncate(text);
   }
   return '';
@@ -141,7 +157,7 @@ async function describe(repo) {
     empty,
     team,
     image: override.image ?? readmeImage(md, repo, readme?.path ?? 'README.md'),
-    house: houseFor(repo.name, commits, empty, repo.language),
+    house: houseFor(repo.name, commits, empty, repo.language, override.house),
   };
 }
 
@@ -259,6 +275,19 @@ function houseSvg(p, x, groundY, s) {
     out.push(`<line class="thin" x1="${cx + 7 * s}" y1="${ct}" x2="${cx + 7 * s}" y2="${ct + 3 * s}"/>`);
     return { svg: out.join(''), top: ct };
   }
+  if (h.style === 'nurdach') {
+    // Nurdachhaus: Giebeldreieck, Dach bis zum Boden, verglaste Fensterabteile
+    const cx = x + w / 2, hp = h.height * s, o = 0.5 * s;
+    const pt = ([px, py]) => `${(cx + px * s).toFixed(1)},${(groundY - py * s).toFixed(1)}`;
+    out.push(`<polygon class="ink" points="${x},${groundY} ${cx},${groundY - hp} ${x + w},${groundY}" fill="${facadeFill(h)}"/>`);
+    for (const cell of nurdachCells().slice(0, h.windows ?? 0)) {
+      out.push(`<polygon class="win" points="${insetPolygon(cell, 0.18).map(pt).join(' ')}"/>`);
+    }
+    out.push(`<rect class="door" x="${cx - 0.55 * s}" y="${groundY - 2.2 * s}" width="${1.1 * s}" height="${2.2 * s}"/>`);
+    const k = o / (w / 2); // Dach steht über die Giebelkante hinaus
+    out.push(`<polyline class="roofline" points="${x - o},${groundY + 1} ${cx},${groundY - hp - hp * k} ${x + w + o},${groundY + 1}" stroke="${h.roofColor}"/>`);
+    return { svg: out.join(''), top: groundY - hp - hp * k };
+  }
   const drawn = drawnFloors(h);
   const bh = drawn * FLOOR_H * s;
   const y0 = groundY - bh;
@@ -328,7 +357,7 @@ function streetSvg() {
   // Platz für die schrägen Beschriftungen (40°) aus der Textlänge schätzen
   const labelLen = (p) => (String(p.number).length + 1 + p.title.length) * 7.4;
   const labelRise = Math.ceil(Math.max(60, ...projects.map(labelLen)) * Math.sin(Math.PI * 40 / 180)) + 24;
-  const tallest = Math.max(2, ...projects.map((p) => (p.house.floors === 0 ? 4.8 : drawnFloors(p.house))));
+  const tallest = Math.max(2, ...projects.map((p) => (p.house.floors === 0 ? 4.8 : p.house.style === 'nurdach' ? p.house.height / FLOOR_H : drawnFloors(p.house))));
   const maxHouse = tallest * FLOOR_H * s + 10 * 0.42 * s;
   const rowH = labelRise + maxHouse + 58;
   const rowWidths = rows.map((r) => {
