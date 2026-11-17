@@ -67,7 +67,7 @@
 <line class="leader" x1="468" y1="336.94" x2="468" y2="250.2"/>
 <text class="label" transform="translate(470,248.2) rotate(-40)"><tspan class="num">8</tspan> Energieeffizienz Oekobilanz Optimierung</text>
 <text class="plate" x="468" y="420.2" text-anchor="middle">8</text></g></a>
-<a href="https://github.com/Jade-HS-Vibecoding-WPK/CO-Emissionsrechner"><g><rect class="ink" x="502" y="387.2" width="45" height="18" fill="#e8c97a"/><rect class="win" x="506.2" y="390.8" width="6.6" height="8.4"/><rect class="win" x="536.2" y="390.8" width="6.6" height="8.4"/><rect class="door" x="521.2" y="392" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="499.6,387.2 504.4,362 544.6,362 549.4,387.2" fill="#6d6a5f"/>
+<a href="https://github.com/Jade-HS-Vibecoding-WPK/CO-Emissionsrechner"><g><rect class="ink" x="502" y="387.2" width="45" height="18" fill="url(#f-klinker-b4694c)"/><rect class="win" x="506.2" y="390.8" width="6.6" height="8.4"/><rect class="win" x="536.2" y="390.8" width="6.6" height="8.4"/><rect class="door" x="521.2" y="392" width="6.6000000000000005" height="13.200000000000001"/><polygon class="ink" points="499.6,387.2 504.4,362 544.6,362 549.4,387.2" fill="#6d6a5f"/>
 <line class="leader" x1="524.5" y1="358" x2="524.5" y2="250.2"/>
 <text class="label" transform="translate(526.5,248.2) rotate(-40)"><tspan class="num">9</tspan> CO Emissionsrechner</text>
 <text class="plate" x="524.5" y="420.2" text-anchor="middle">9</text></g></a>
