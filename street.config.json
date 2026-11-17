@@ -5,7 +5,7 @@
   "siteUrl": "https://jade-hs-vibecoding-wpk.github.io/.github/",
   "exclude": [".github"],
   "overrides": {
-    "Bau-Normen-KI": { "team": ["Freckle02"], "house": "nurdach" },
+    "Bau-Normen": { "team": ["Freckle02"], "house": "nurdach" },
     "urban-analysis-plugin": { "house": "voxel", "setzlinge": true },
     "gebaeudehoehentool-umgebungsmodell": { "house": "hoehenmodell" },
     "laserdatei-aus-3D": { "house": "karton" },

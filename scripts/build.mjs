@@ -163,6 +163,10 @@ async function describe(repo) {
 }
 
 const repos = await listRepos();
+// Einstellungen für Repos, die es (unter diesem Namen) nicht mehr gibt – meist umbenannt
+for (const name of Object.keys(config.overrides ?? {})) {
+  if (!repos.some((r) => r.name === name)) console.warn(`::warning::street.config.json: kein Repo „${name}“ (umbenannt?), Einstellungen greifen nicht`);
+}
 const projects = (await Promise.all(repos.map(describe))).sort((a, b) =>
   a.createdAt.localeCompare(b.createdAt),
 );
