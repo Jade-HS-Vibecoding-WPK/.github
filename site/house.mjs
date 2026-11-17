@@ -65,6 +65,35 @@ export function windowsFor(commits) {
   return floorsFor(commits) - 1;
 }
 
+// Baumschule am Block-Haus: jeden Tag ein neuer Setzling (ab Anlage des Repos),
+// der alle 8 Stunden eine Stufe wächst – Stufe 1 = Setzling, Stufe 5 = ausgewachsener Baum
+export const SAPLINGS = { stages: 5, stepHours: 8, slots: 8 };
+const HOUR = 3600 * 1000;
+
+export function saplingsAt(since, now = Date.now()) {
+  const t0 = Date.parse(since);
+  const stages = [];
+  for (let k = 0; k < SAPLINGS.slots; k++) {
+    const age = now - (t0 + k * 24 * HOUR);
+    if (!(age >= 0)) break;
+    stages.push(Math.min(SAPLINGS.stages, 1 + Math.floor(age / (SAPLINGS.stepHours * HOUR))));
+  }
+  return stages;
+}
+
+// Zeitpunkt der nächsten Veränderung (neue Stufe oder neuer Setzling), null wenn fertig
+export function nextSaplingChange(since, now = Date.now()) {
+  const t0 = Date.parse(since), step = SAPLINGS.stepHours * HOUR;
+  let next = Infinity;
+  for (let k = 0; k < SAPLINGS.slots; k++) {
+    const plant = t0 + k * 24 * HOUR;
+    if (plant > now) { next = Math.min(next, plant); break; }
+    const grown = plant + (SAPLINGS.stages - 1) * step;
+    if (grown > now) next = Math.min(next, plant + Math.ceil((now - plant + 1) / step) * step);
+  }
+  return Number.isFinite(next) ? next : null;
+}
+
 // Nurdachhaus: Das Dach reicht bis zum Boden, der Giebel zeigt zur Straße.
 // Es wächst nicht in die Höhe, sondern bekommt im Giebel ein Fensterabteil nach dem anderen.
 export const NURDACH = { width: 9, height: 8.6 };

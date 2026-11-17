@@ -6,6 +6,6 @@
   "exclude": [".github"],
   "overrides": {
     "Bau-Normen-KI": { "team": ["Freckle02"], "house": "nurdach" },
-    "urban-analysis-plugin": { "house": "voxel" }
+    "urban-analysis-plugin": { "house": "voxel", "setzlinge": true }
   }
 }

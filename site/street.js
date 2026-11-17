@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
-import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor, nurdachCells, insetPolygon } from './house.mjs';
+import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor, nurdachCells, insetPolygon, saplingsAt, nextSaplingChange, SAPLINGS } from './house.mjs';
 
 // ---------- Maße der Straße (Meter) ----------
 const STREET_HALF = 3.6;               // halbe Fahrbahn
@@ -669,6 +669,99 @@ function blockBox(w, hh, d, material, x, y, z) {
   return m;
 }
 
+// ---------- Baumschule am Block-Haus ----------
+// Jeden Tag ein neuer Setzling auf einem Erdblock, alle 8 Stunden eine Stufe größer
+// (Zeitplan in house.mjs). Stufe 1 = Setzling, Stufe 5 = 5 Blöcke hoher Baum mit Äpfeln.
+function saplingTex() {
+  return pixelTexture('sapling', (g, r) => {
+    const greens = ['#3b6b1f', '#5c9c33', '#4a8228', '#86c74f'];
+    for (const [cx, cy, rad] of [[8, 4.5, 3.2], [4.5, 8, 2.5], [11.5, 8.5, 2.6], [8, 9.5, 1.8]]) {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+        if (d <= rad && (d < rad - 0.9 || r() < 0.55)) pix(g, x, y, greens[Math.floor(r() * greens.length)]);
+      }
+    }
+    for (let y = 10; y < 16; y++) pix(g, 7, y, y % 3 ? '#6b4a2b' : '#53381f');
+    pix(g, 8, 13, '#6b4a2b'); pix(g, 6, 11, '#6b4a2b');
+  });
+}
+function fruitLeavesTex() {
+  return pixelTexture('leavesFruit', (g, r) => {
+    g.drawImage(leavesTex().image, 0, 0);
+    for (const [x, y] of [[3, 2], [11, 4], [6, 9], [13, 12], [2, 13], [9, 14]]) {
+      pix(g, x, y, '#d6352b'); pix(g, x + 1, y, '#b3241d'); pix(g, x, y + 1, '#b3241d'); pix(g, x + 1, y + 1, '#8f1a15');
+    }
+  });
+}
+let gardenMats = null;
+function saplingMats() {
+  gardenMats ??= {
+    sapling: blockMat(saplingTex(), { alphaTest: 0.5, side: THREE.DoubleSide }),
+    log: blockMat(logTex(false)),
+    leaves: blockMat(leavesTex()),
+    fruit: blockMat(fruitLeavesTex()),
+  };
+  return gardenMats;
+}
+function saplingTree(stage, x, z) {
+  const m = saplingMats(), t = new THREE.Group();
+  t.add(blockBox(1, 1, 1, erdblockMats(), x, 0.5, z));
+  if (stage <= 1) {
+    for (const a of [Math.PI / 4, -Math.PI / 4]) {
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), m.sapling);
+      s.position.set(x, 1.45, z);
+      s.rotation.y = a;
+      t.add(s);
+    }
+    return t;
+  }
+  const trunk = stage === 5 ? 2 : 1;
+  t.add(blockBox(1, trunk, 1, m.log, x, 1 + trunk / 2, z));
+  const L = stage === 5 ? m.fruit : m.leaves;
+  const leaf = (w, hh, d, y, dz = 0) => t.add(blockBox(w, hh, d, L, x, 1 + y + hh / 2, z + dz));
+  if (stage === 2) leaf(1, 1, 1, 1);
+  if (stage === 3) { leaf(3, 1, 3, 1); leaf(1, 1, 1, 2); }
+  if (stage === 4) { leaf(3, 2, 3, 1); leaf(1, 1, 1, 3); }
+  if (stage === 5) { leaf(3, 2, 3, 2); leaf(3, 1, 1, 4); leaf(1, 1, 1, 4, -1); leaf(1, 1, 1, 4, 1); }
+  return t;
+}
+// Beete neben dem Haus (Seite ohne Ausleger-Schild): 2 Reihen, von der Straße nach hinten
+const gardens = [];
+function buildGarden(g, hs, p, index, gs) {
+  const gd = { group: new THREE.Group(), p, index, gs, W: hs.width, front: hs.depth / 2, key: null };
+  g.add(gd.group);
+  gardens.push(gd);
+  refreshGarden(gd);
+}
+function refreshGarden(gd) {
+  const stages = saplingsAt(gd.p.createdAt);
+  const key = stages.join(',');
+  if (key === gd.key) return;
+  gd.key = key;
+  gd.group.traverse((o) => o.geometry?.dispose());
+  gd.group.clear();
+  stages.forEach((stage, k) => {
+    const x = gd.gs * (gd.W / 2 + 2 + (k % 2) * 4);
+    const z = gd.front - 1.5 - Math.floor(k / 2) * 4;
+    gd.group.add(saplingTree(stage, x, z));
+  });
+  gd.group.traverse((o) => (o.userData.house = gd.index));
+}
+function saplingFact(since) {
+  const stages = saplingsAt(since);
+  if (!stages.length) return 'noch nichts gepflanzt';
+  const list = new Intl.ListFormat('de', { type: 'conjunction' }).format(stages.map(String));
+  const head = stages.length === 1
+    ? `1 Setzling, Stufe ${list} von ${SAPLINGS.stages}`
+    : `${stages.length} Setzlinge, Stufe ${list} von ${SAPLINGS.stages}`;
+  const next = nextSaplingChange(since);
+  if (!next) return `${head} · fertig gewachsen`;
+  const d = new Date(next);
+  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const day = d.toDateString() === new Date().toDateString() ? '' : `${d.toLocaleDateString('de-DE', { weekday: 'short' })} `;
+  return `${head} · wächst wieder ${day}${time} Uhr`;
+}
+
 function buildVoxel(g, hs, r, active, plateTex) {
   const W = hs.width, D = hs.depth, H = hs.floors * FLOOR_H, front = D / 2;
   const planks = blockMat(planksTex(hs.facade));
@@ -756,6 +849,7 @@ function buildHouse(p, index, signTex, plateTex) {
     buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex);
   } else if (hs.style === 'voxel' && hs.floors > 0) {
     buildVoxel(g, hs, r, active, plateTex);
+    if (hs.saplings && p.createdAt) buildGarden(g, hs, p, index, side < 0 ? 1 : -1);
   } else if (hs.floors > 0) {
     g.add(box(W + 0.3, 0.3, D + 0.3, mat('#8f8a82'), 0, 0.15, 0));
     const body = mesh(meterUVs(new THREE.BoxGeometry(W, H, D), W, H, D), bodyMat);
@@ -1110,6 +1204,7 @@ function updateEnvironment(dt) {
     envClock = 0;
     envTarget = computeEnvTarget();
     updateDaylightButton();
+    gardens.forEach(refreshGarden);
   }
   if (!envNow) envNow = { ...mixEnv(envTarget, envTarget, 0), dir: envTarget.dir.clone() };
   const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.5);
@@ -1682,6 +1777,7 @@ function renderCard(p, i) {
       : p.house.style === 'voxel' && p.house.floors > 0
         ? ['Bauweise', 'Block-Stil · Gründach aus dem Erdblock des Teams']
         : null,
+    p.house.saplings && p.createdAt ? ['Baumschule', saplingFact(p.createdAt)] : null,
     ['Sprache', p.language
       ? `${p.language} · ${MATERIALS[p.house.material ?? materialFor(p.language)].label}`
       : `${MATERIALS[p.house.material ?? 'putz'].label} (ohne Sprache)`],

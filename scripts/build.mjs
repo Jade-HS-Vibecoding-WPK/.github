@@ -7,7 +7,7 @@
 // Ohne Token klappt es auch (60 API-Aufrufe/Stunde).
 
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
-import { houseFor, prettyTitle, FLOOR_H, nurdachCells, insetPolygon } from '../site/house.mjs';
+import { houseFor, prettyTitle, FLOOR_H, nurdachCells, insetPolygon, saplingsAt } from '../site/house.mjs';
 
 const root = new URL('../', import.meta.url);
 const config = JSON.parse(await readFile(new URL('street.config.json', root), 'utf8'));
@@ -157,7 +157,7 @@ async function describe(repo) {
     empty,
     team,
     image: override.image ?? readmeImage(md, repo, readme?.path ?? 'README.md'),
-    house: houseFor(repo.name, commits, empty, repo.language, override.house),
+    house: { ...houseFor(repo.name, commits, empty, repo.language, override.house), ...(override.setzlinge ? { saplings: true } : {}) },
   };
 }
 
@@ -279,6 +279,36 @@ function voxelSvg(h, x, groundY, s, w) {
   return { svg: out.join(''), top: y0 - 5.5 * B };
 }
 
+// Baumschule neben dem Block-Haus: in der Ansicht sieht man nur die vordere Reihe
+// (dahinter stehen immer jüngere, also kleinere Bäume)
+const GARDEN_W = 8; // Meter neben dem Haus
+function gardenSvg(stages, xWall, groundY, B) {
+  const out = [];
+  const rect = (x, y, w, hh, fill) => out.push(`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${fill}"/>`);
+  stages.slice(0, 2).forEach((stage, k) => {
+    const cx = xWall + (2 + k * 4) * B; // Mitte des Beets
+    const at = (dx, y, w, hh, fill) => rect(cx + (dx - w / 2) * B, groundY - (y + hh) * B, w * B, hh * B, fill);
+    at(0, 0, 1, 1, '#8a5a32');
+    at(0, 0.7, 1, 0.3, '#5c9c33');
+    const leaf = '#4a8228', log = '#86643d';
+    if (stage <= 1) {
+      at(0, 1, 0.16, 0.45, '#6b4a2b');
+      at(0, 1.35, 0.6, 0.35, '#5c9c33');
+      at(0, 1.7, 0.3, 0.2, '#5c9c33');
+      return;
+    }
+    at(0, 1, 1, stage === 5 ? 2 : 1, log);
+    if (stage === 2) at(0, 2, 1, 1, leaf);
+    if (stage === 3) { at(0, 2, 3, 1, leaf); at(0, 3, 1, 1, leaf); }
+    if (stage === 4) { at(0, 2, 3, 2, leaf); at(0, 4, 1, 1, leaf); }
+    if (stage === 5) {
+      at(0, 3, 3, 2, leaf); at(0, 5, 3, 1, leaf);
+      for (const [dx, y] of [[-1, 3.4], [0.7, 4.3], [-0.3, 5.3], [1.1, 3.2]]) at(dx, y, 0.32, 0.32, '#d6352b');
+    }
+  });
+  return out.join('');
+}
+
 function houseSvg(p, x, groundY, s) {
   const h = p.house;
   const w = h.width * s;
@@ -315,7 +345,11 @@ function houseSvg(p, x, groundY, s) {
     out.push(`<polyline class="roofline" points="${x - o},${groundY + 1} ${cx},${groundY - hp - hp * k} ${x + w + o},${groundY + 1}" stroke="${h.roofColor}"/>`);
     return { svg: out.join(''), top: groundY - hp - hp * k };
   }
-  if (h.style === 'voxel') return voxelSvg(h, x, groundY, s, w);
+  if (h.style === 'voxel') {
+    const v = voxelSvg(h, x, groundY, s, w);
+    if (h.saplings && p.createdAt) v.svg += gardenSvg(saplingsAt(p.createdAt), x + w, groundY, s);
+    return v;
+  }
   const drawn = drawnFloors(h);
   const bh = drawn * FLOOR_H * s;
   const y0 = groundY - bh;
@@ -377,6 +411,7 @@ function streetSvg() {
   usedPatterns.clear();
   const s = 6; // px pro Meter
   const gap = 13;
+  const lotW = (p) => p.house.width * s + (p.house.saplings ? GARDEN_W * s : 0);
   const perRow = 24;
   const rows = [];
   for (let i = 0; i < projects.length; i += perRow) rows.push(projects.slice(i, i + perRow));
@@ -392,8 +427,8 @@ function streetSvg() {
     let x = marginX, right = 0;
     for (const p of r) {
       const cx = x + (p.house.width * s) / 2;
-      right = Math.max(right, cx + labelLen(p) * Math.cos(Math.PI * 40 / 180) + 20, x + p.house.width * s + marginX);
-      x += p.house.width * s + gap;
+      right = Math.max(right, cx + labelLen(p) * Math.cos(Math.PI * 40 / 180) + 20, x + lotW(p) + marginX);
+      x += lotW(p) + gap;
     }
     return right;
   });
@@ -406,7 +441,7 @@ function streetSvg() {
     let x = marginX;
     for (const p of row) {
       houses.push({ p, x, ...houseSvg(p, x, groundY, s) });
-      x += p.house.width * s + gap;
+      x += lotW(p) + gap;
     }
     const labelY = Math.min(...houses.map((h) => h.top), groundY - 40) - 16;
     // Boden und Straße
