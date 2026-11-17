@@ -6,6 +6,22 @@
   "exclude": [".github"],
   "overrides": {
     "Bau-Normen-KI": { "team": ["Freckle02"], "house": "nurdach" },
-    "urban-analysis-plugin": { "house": "voxel", "setzlinge": true }
+    "urban-analysis-plugin": { "house": "voxel", "setzlinge": true },
+    "gebaeudehoehentool-umgebungsmodell": { "house": "hoehenmodell" },
+    "laserdatei-aus-3D": { "house": "karton" },
+    "Grundstuecksanalyse-Tool": { "house": "plankopf" },
+    "Mapping-Tool-Architektur": { "house": "schwarzplan" },
+    "Modellbau-Laserdatei-Gebaeude": { "house": "laserplatte" },
+    "Energieeffizienz-Oekobilanz-Optimierung": { "house": "passivhaus" },
+    "CO-Emissionsrechner": { "house": "swiss" },
+    "plan-pruefer": { "house": "planpruefer" },
+    "15-min-stadt-scanner": { "house": "glas" },
+    "fassaden-tool": { "house": "musterfassade" },
+    "treppenplaner": { "house": "treppe" },
+    "Map2Model": { "house": "sperrholz" },
+    "Workflow_App": { "house": "kacheln" },
+    "Detailpruefer": { "house": "holzrahmen" },
+    "Standortanalyse-": { "house": "kartenplatte" },
+    "Kaufcheck": { "house": "rendite" }
   }
 }

@@ -8,6 +8,7 @@
 
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
 import { houseFor, prettyTitle, FLOOR_H, nurdachCells, insetPolygon, saplingsAt } from '../site/house.mjs';
+import { styleSvg, styleSideExtra } from './style-svg.mjs';
 
 const root = new URL('../', import.meta.url);
 const config = JSON.parse(await readFile(new URL('street.config.json', root), 'utf8'));
@@ -350,6 +351,8 @@ function houseSvg(p, x, groundY, s) {
     if (h.saplings && p.createdAt) v.svg += gardenSvg(saplingsAt(p.createdAt), x + w, groundY, s);
     return v;
   }
+  const styled = styleSvg(p, x, groundY, s, { facadeFill });
+  if (styled) return styled;
   const drawn = drawnFloors(h);
   const bh = drawn * FLOOR_H * s;
   const y0 = groundY - bh;
@@ -411,7 +414,7 @@ function streetSvg() {
   usedPatterns.clear();
   const s = 6; // px pro Meter
   const gap = 13;
-  const lotW = (p) => p.house.width * s + (p.house.saplings ? GARDEN_W * s : 0);
+  const lotW = (p) => (p.house.width + (p.house.saplings ? GARDEN_W : 0) + styleSideExtra(p.house)) * s;
   const perRow = 24;
   const rows = [];
   for (let i = 0; i < projects.length; i += perRow) rows.push(projects.slice(i, i + perRow));

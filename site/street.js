@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
-import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor, nurdachCells, insetPolygon, saplingsAt, nextSaplingChange, SAPLINGS } from './house.mjs';
+import { houseFor, prettyTitle, FLOOR_H, rng, hash, MATERIALS, materialFor, nurdachCells, insetPolygon, saplingsAt, nextSaplingChange, SAPLINGS, styleLabel } from './house.mjs';
+import { buildStyled, STYLED } from './styles.js';
 
 // ---------- Maße der Straße (Meter) ----------
 const STREET_HALF = 3.6;               // halbe Fahrbahn
@@ -511,6 +512,28 @@ function plateGeo(poly, z, depth, hole = null) {
   return geo;
 }
 
+// Fassadenmaterial wie bei den normalen Häusern, für die eigenen Bauweisen
+const facadeMatCache = new Map();
+function facadeMaterial(material, color) {
+  const key = material + color;
+  if (!facadeMatCache.has(key)) {
+    facadeMatCache.set(key, new THREE.MeshStandardMaterial({
+      map: facadeTexture(material, color),
+      color: material === 'putz' ? color : '#ffffff',
+      roughness: material === 'metall' ? 0.55 : 0.92,
+      metalness: material === 'metall' ? 0.15 : 0,
+    }));
+  }
+  return facadeMatCache.get(key);
+}
+function numberPlate(g, plateTex, x, y, z) {
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.3), signMaterial(plateTex, 0.5));
+  plate.position.set(x, y, z);
+  g.add(plate);
+}
+// Dinge, die sich mit der Uhrzeit ändern (z. B. die Jetzt-Linie am Gantt-Haus), alle 30 s
+const tickers = [];
+
 function addDoor(g, front, plateTex) {
   g.add(box(1.4, 2.45, 0.08, frameMat, 0, 1.5, front + 0.02, { cast: false }));
   g.add(box(1.15, 2.25, 0.12, mat('#6b4f3a', { roughness: 0.7 }), 0, 1.42, front + 0.04, { cast: false }));
@@ -844,12 +867,20 @@ function buildHouse(p, index, signTex, plateTex) {
   // (beim Nurdachhaus dort, wo der Giebel in Auslegerhöhe noch breit genug ist)
   const cornerOff = nurdach ? (W / 2) * (1 - 3.25 / H) - 0.35 : W / 2 - 0.6;
   const cornerX = side < 0 ? -cornerOff : cornerOff;
+  let styled = null;
 
   if (nurdach) {
     buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex);
   } else if (hs.style === 'voxel' && hs.floors > 0) {
     buildVoxel(g, hs, r, active, plateTex);
     if (hs.saplings && p.createdAt) buildGarden(g, hs, p, index, side < 0 ? 1 : -1);
+  } else if (STYLED.has(hs.style) && hs.floors > 0) {
+    // eigene Bauweise nach dem Design des Projekts (site/styles.js)
+    styled = buildStyled(g, p, hs, {
+      mat, mesh, box, boxGeo, meterUVs, facadeMaterial, addDoor, buildRoof, glassMat, litMat, frameMat,
+      numberPlate: (gg, x, y, zz) => numberPlate(gg, plateTex, x, y, zz),
+      plateTex, r, active, gs: side < 0 ? 1 : -1, onTick: (fn) => tickers.push(fn),
+    });
   } else if (hs.floors > 0) {
     g.add(box(W + 0.3, 0.3, D + 0.3, mat('#8f8a82'), 0, 0.15, 0));
     const body = mesh(meterUVs(new THREE.BoxGeometry(W, H, D), W, H, D), bodyMat);
@@ -923,7 +954,7 @@ function buildHouse(p, index, signTex, plateTex) {
   // Vorgarten: Weg und Hecken
   g.add(box(1.5, 0.05, YARD, mat('#cfc8bb'), 0, 0.025, front + YARD / 2, { cast: false }));
   const hedgeW = (W - 1.5) / 2 - 0.4;
-  if (hedgeW > 0.6 && hs.floors > 0 && hs.style !== 'voxel') {
+  if (hedgeW > 0.6 && hs.floors > 0 && hs.style !== 'voxel' && styled?.hedges !== false) {
     const hedge = mat(r() < 0.5 ? '#7f9a63' : '#8aa56c');
     for (const s of [-1, 1]) g.add(box(hedgeW, 0.75, 0.55, hedge, s * (0.75 + 0.2 + hedgeW / 2), 0.375, front + YARD - 0.4));
   }
@@ -1205,6 +1236,7 @@ function updateEnvironment(dt) {
     envTarget = computeEnvTarget();
     updateDaylightButton();
     gardens.forEach(refreshGarden);
+    for (const t of tickers) t();
   }
   if (!envNow) envNow = { ...mixEnv(envTarget, envTarget, 0), dir: envTarget.dir.clone() };
   const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.5);
@@ -1776,7 +1808,9 @@ function renderCard(p, i) {
       ? ['Bauweise', `Nurdachhaus · ${p.house.windows} ${p.house.windows === 1 ? 'Fensterabteil' : 'Fensterabteile'}`]
       : p.house.style === 'voxel' && p.house.floors > 0
         ? ['Bauweise', 'Block-Stil · Gründach aus dem Erdblock des Teams']
-        : null,
+        : p.house.floors > 0 && styleLabel(p.house)
+          ? ['Bauweise', styleLabel(p.house)]
+          : null,
     p.house.saplings && p.createdAt ? ['Baumschule', saplingFact(p.createdAt)] : null,
     ['Sprache', p.language
       ? `${p.language} · ${MATERIALS[p.house.material ?? materialFor(p.language)].label}`

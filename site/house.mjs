@@ -65,6 +65,65 @@ export function windowsFor(commits) {
   return floorsFor(commits) - 1;
 }
 
+// Eigene Bauweisen, die Farben, Formen und Motive aus der Oberfläche des jeweiligen
+// Projekts aufgreifen (overrides.house in street.config.json). Gebaut in site/styles.js,
+// gezeichnet fürs README in scripts/style-svg.mjs.
+export const STYLES = {
+  hoehenmodell: {},                         // gebaeudehoehentool: weißes Umgebungsmodell mit Höhenkote
+  karton: { roof: 'flat' },                 // laserdatei-aus-3D: Kraftkarton, Abwicklung im Garten
+  plankopf: { roof: 'flat' },               // Grundstücksanalyse: Papier, Tusche, roter Standortpunkt
+  schwarzplan: { roof: 'flat' },            // Mapping-Tool: schwarzer Block auf weißer Platte
+  laserplatte: { roof: 'flat' },            // Modellbau-Laserdatei: Pfirsich-Platten mit Ausschnitten
+  passivhaus: { roof: 'gable', ridge: 'side' }, // Energieeffizienz: wird nachhaltiger statt höher
+  swiss: { roof: 'flat' },                  // CO-Emissionsrechner: Swiss Style, Nadelbäume
+  planpruefer: { roof: 'flat' },            // plan-pruefer: Nachtblau, Prüfhaken je Geschoss
+  glas: { roof: 'flat' },                   // 15-min-stadt-scanner: Milchglas, Ringe, Ziel-Pins
+  musterfassade: { roof: 'flat' },          // fassaden-tool: jedes Geschoss ein anderes Material
+  treppe: { roof: 'flat' },                 // treppenplaner: Linienzeichnung mit Außentreppe
+  sperrholz: { roof: 'flat' },              // Map2Model: Sperrholzmodell auf Kartenplatte
+  kacheln: { roof: 'flat' },                // Workflow_App: Gantt-Balken und rote Jetzt-Linie
+  holzrahmen: {},                           // Detailpruefer: Holzrahmenbau mit Schnitt und Prüfmarken
+  kartenplatte: { roof: 'flat' },           // Standortanalyse: Weißmodell auf bemalter Kartenplatte
+  rendite: { roof: 'flat' },                // Kaufcheck: Stadthaus wie ein steigendes Balkendiagramm
+};
+export const PASSIV_UPGRADES = ['Solardach', 'Holzfaserfassade', 'Wärmepumpe', 'Fassadengrün', 'Regenspeicher', 'E-Ladesäule'];
+export const EFFIZIENZ = ['G', 'F', 'E', 'D', 'C', 'B', 'A'];
+export const SWATCHES = [['klinker', 'Klinker'], ['holz', 'Holz'], ['putz', 'Putz'], ['beton', 'Sichtbeton'], ['metall', 'Metall']];
+export const MAP_LAYERS = ['Grünflächen', 'Hauptstraßen', 'Buslinie', 'Radwege', 'Bäume', 'Nutzungen', 'Fußwege'];
+export const mapLayerCount = (hs) => Math.min(MAP_LAYERS.length, hs.floors + 1);
+// Ampel am Kaufcheck-Haus nach der letzten Aktivität: grün < 1 Tag, gelb < 3 Tage, sonst rot
+export function ampelFor(pushedAt, now = Date.now()) {
+  const h = (now - Date.parse(pushedAt)) / 3600000;
+  return !(h >= 0) || h < 24 ? 'gruen' : h < 72 ? 'gelb' : 'rot';
+}
+// Stadthaus in drei Abschnitten, die nach außen ansteigen wie ein Renditechart
+export const renditeSteps = (floors) => [Math.max(1, Math.round(floors * 0.5)), Math.max(1, Math.round(floors * 0.75)), floors];
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+export function styleLabel(hs) {
+  const n = hs.floors;
+  switch (hs.style) {
+    case 'hoehenmodell': return `Umgebungsmodell · Höhenkote ${(n * FLOOR_H).toFixed(2).replace('.', ',')} m`;
+    case 'karton': return `Kartonmodell · Abwicklung mit ${Math.min(n, 6)} von 6 Flächen`;
+    case 'plankopf': return 'Planzeichnung · Papier, Tusche, roter Standortpunkt';
+    case 'schwarzplan': return 'Schwarzplan-Block · der Schatten folgt der echten Sonne';
+    case 'laserplatte': return `Laserplatten · Teile A-001 bis A-${String(n).padStart(3, '0')}`;
+    case 'passivhaus':
+      return `Passivhaus · Effizienzklasse ${EFFIZIENZ[hs.level ?? 0]}${hs.level ? ` · ${PASSIV_UPGRADES.slice(0, hs.level).join(', ')}` : ''}`;
+    case 'swiss': return `Swiss Style · ${plural(n, 'Nadelbaum', 'Nadelbäume')} im Garten`;
+    case 'planpruefer': return `Prüfhaus · ${n - 1} von ${n} Geschossen abgehakt`;
+    case 'glas': return `Glaspavillon · ${plural(n, 'Ziel', 'Ziele')} im 15-Minuten-Radius`;
+    case 'musterfassade': return `Musterfassade · ${SWATCHES.slice(0, Math.min(n, SWATCHES.length)).map((s) => s[1]).join(', ')}`;
+    case 'treppe': return n > 1 ? `Außentreppe · ${plural(n - 1, 'Lauf', 'Läufe')}` : 'Linienzeichnung · Treppe folgt';
+    case 'sperrholz': return 'Sperrholzmodell mit Fingerzinken auf Kartenplatte';
+    case 'kacheln': return `Gantt-Haus · ${Math.max(0, n - 1)} Balken · rote Jetzt-Linie`;
+    case 'holzrahmen': return `Holzrahmenbau im Schnitt · ${plural(n, 'Prüfmarke', 'Prüfmarken')}`;
+    case 'kartenplatte': return `Weißmodell auf Kartenplatte · ${mapLayerCount(hs)} Layer`;
+    case 'rendite': return `Stadthaus · ${renditeSteps(n).join(' · ')} Geschosse · Ampel nach Aktivität`;
+  }
+  return null;
+}
+
 // Baumschule am Block-Haus: jeden Tag ein neuer Setzling (ab Anlage des Repos),
 // der alle 8 Stunden eine Stufe wächst – Stufe 1 = Setzling, Stufe 5 = ausgewachsener Baum
 export const SAPLINGS = { stages: 5, stepHours: 8, slots: 8 };
@@ -183,6 +242,14 @@ export function houseFor(name, commits, empty, language, style) {
   if (style === 'voxel') {
     // Block-Stil: alles auf ganze Meter (1 Block = 1 m), Gründach
     Object.assign(house, { style, width: Math.round(house.width), depth: Math.round(house.depth), roof: 'flat' });
+  }
+  if (STYLES[style]) {
+    Object.assign(house, { style, ...STYLES[style] });
+    if (style === 'passivhaus' && !empty) {
+      // wächst nicht in die Höhe, sondern wird mit jeder Verdopplung nachhaltiger
+      house.floors = 2;
+      house.level = Math.min(PASSIV_UPGRADES.length, floorsFor(commits) - 1);
+    }
   }
   if (style === 'nurdach') {
     Object.assign(house, {
