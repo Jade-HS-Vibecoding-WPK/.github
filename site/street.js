@@ -1828,6 +1828,7 @@ function renderCard(p, i) {
     : null;
   const prev = houses[i - 1], next = houses[i + 1];
   card.replaceChildren(...[
+    h('div', { class: 'grabber', 'aria-hidden': 'true' }),
     h('button', { class: 'close', type: 'button', 'aria-label': 'Schließen', onclick: closeCard }, '×'),
     h('div', { class: 'card-head' },
       plateEl(p.number),
@@ -1881,7 +1882,85 @@ function pick(cx, cy) {
   return hits.length ? hits[0].object.userData.house ?? -1 : -1;
 }
 
+// ---------- Wischen auf der Projektkarte (Touch) ----------
+// Zur Seite: vorheriges/nächstes Projekt, die Karte folgt dem Finger.
+// Nach unten am Griff oder Kopf der Karte: schließen. Senkrechtes Scrollen bleibt nativ (touch-action: pan-y).
+function setupCardSwipe() {
+  const card = $('#card');
+  let g = null, swallowClick = false;
+  const slide = (transform, ms, done) => {
+    if (reduceMotion) {
+      card.style.transition = 'none';
+      card.style.transform = done ? transform : '';
+      done?.();
+      return;
+    }
+    card.style.transition = `transform ${ms}ms cubic-bezier(.2, .8, .2, 1)`;
+    card.style.transform = transform;
+    setTimeout(() => { if (done) done(); else card.style.transition = ''; }, ms);
+  };
+  card.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch' || !e.isPrimary || selected < 0) return;
+    g = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), dx: 0, dy: 0, axis: null, head: !!e.target.closest('.grabber, .card-head') };
+  });
+  card.addEventListener('pointermove', (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    g.dx = e.clientX - g.x;
+    g.dy = e.clientY - g.y;
+    if (!g.axis) {
+      if (Math.hypot(g.dx, g.dy) < 10) return;
+      g.axis = Math.abs(g.dx) > Math.abs(g.dy) * 1.2 ? 'x' : g.head && g.dy > 0 ? 'y' : null;
+      if (!g.axis) { g = null; return; } // senkrecht scrollt der Browser selbst
+      try { card.setPointerCapture(e.pointerId); } catch { /* Zeiger schon weg */ }
+      card.style.transition = 'none';
+    }
+    if (g.axis === 'x') {
+      const atEnd = (g.dx > 0 && selected <= 0) || (g.dx < 0 && selected >= houses.length - 1);
+      card.style.transform = `translateX(${atEnd ? g.dx * 0.25 : g.dx}px)`;
+    } else {
+      card.style.transform = `translateY(${Math.max(0, g.dy)}px)`;
+    }
+  });
+  const end = (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    const { axis, dx, dy } = g, dt = Math.max(1, performance.now() - g.t);
+    g = null;
+    if (!axis) return;
+    swallowClick = true;
+    setTimeout(() => (swallowClick = false), 60);
+    if (axis === 'x') {
+      const w = card.offsetWidth, dir = dx < 0 ? 1 : -1, target = selected + dir;
+      const far = Math.abs(dx) > w * 0.22 || (Math.abs(dx) > 30 && Math.abs(dx) / dt > 0.45);
+      if (far && target >= 0 && target < houses.length && !busy && e.type === 'pointerup') {
+        slide(`translateX(${-dir * w}px)`, 150, () => {
+          select(target);
+          card.style.transition = 'none';
+          card.style.transform = `translateX(${dir * w * 0.35}px)`;
+          void card.offsetWidth; // neue Lage übernehmen, bevor sie einrollt
+          slide('', 200);
+        });
+      } else slide('', 180);
+    } else {
+      const hh = card.offsetHeight;
+      if (e.type === 'pointerup' && (dy > hh * 0.25 || (dy > 30 && dy / dt > 0.45))) {
+        slide(`translateY(${hh}px)`, 180, () => {
+          closeCard();
+          card.style.transition = 'none';
+          card.style.transform = '';
+        });
+      } else slide('', 180);
+    }
+  };
+  card.addEventListener('pointerup', end);
+  card.addEventListener('pointercancel', end);
+  // nach einem Wisch keinen Klick auf Knopf oder Link auslösen
+  card.addEventListener('click', (e) => {
+    if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false; }
+  }, true);
+}
+
 function setupInput() {
+  setupCardSwipe();
   const moveKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }

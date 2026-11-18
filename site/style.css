@@ -349,6 +349,13 @@ body.card-open .directory { opacity: 0; transform: translateX(12px); pointer-eve
 }
 .card-nav button:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .card-nav button:disabled { visibility: hidden; }
+/* Griff der Karte (nur auf dem Handy sichtbar) */
+.card .grabber { display: none; }
+/* Touch: senkrecht scrollt der Browser, seitlich wischt die Karte; am Griff und Kopf zieht sie nach unten zu */
+@media (pointer: coarse) {
+  .card { touch-action: pan-y; }
+  .card .grabber, .card .card-head { touch-action: none; }
+}
 
 /* ---------- Straßenverlauf ---------- */
 
@@ -497,6 +504,15 @@ body.no-webgl .directory { position: static; width: auto; max-width: 720px; max-
     max-height: 62dvh;
     border-radius: 16px 16px 0 0;
     padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .card .grabber {
+    display: block;
+    width: 40px;
+    height: 5px;
+    margin: -8px auto 10px;
+    border-radius: 3px;
+    background: var(--muted);
+    opacity: 0.4;
   }
   .card .shot { max-height: 150px; }
   .facts { grid-template-columns: repeat(3, auto); }
