@@ -72,7 +72,7 @@ export const STYLES = {
   hoehenmodell: {},                         // gebaeudehoehentool: weißes Umgebungsmodell mit Höhenkote
   karton: { roof: 'flat' },                 // laserdatei-aus-3D: Kraftkarton, Abwicklung im Garten
   plankopf: { roof: 'flat' },               // Grundstücksanalyse: Papier, Tusche, roter Standortpunkt
-  schwarzplan: { roof: 'flat' },            // Mapping-Tool: schwarzer Block auf weißer Platte
+  schwarzplan: { roof: 'flat' },            // SiteKick: schwarzer Block auf weißer Platte
   laserplatte: { roof: 'flat' },            // Modellbau-Laserdatei: Pfirsich-Platten mit Ausschnitten
   passivhaus: { roof: 'gable', ridge: 'side' }, // Energieeffizienz: wird nachhaltiger statt höher
   swiss: { roof: 'flat' },                  // CO-Emissionsrechner: Swiss Style, Nadelbäume
@@ -84,7 +84,10 @@ export const STYLES = {
   kacheln: { roof: 'flat' },                // Workflow_App: Gantt-Balken und rote Jetzt-Linie
   holzrahmen: {},                           // Detailpruefer: Holzrahmenbau mit Schnitt und Prüfmarken
   kartenplatte: { roof: 'flat' },           // Standortanalyse: Weißmodell auf bemalter Kartenplatte
-  rendite: { roof: 'flat' },                // Kaufcheck: Stadthaus wie ein steigendes Balkendiagramm
+  rendite: { roof: 'flat' },                // ImmoCheck: Stadthaus wie ein steigendes Balkendiagramm
+  layerturm: { roof: 'flat', width: 10, depth: 10 },   // urban-analyst: dunkler Turm, je Geschoss ein Analyse-Layer
+  materialmatch: { roof: 'flat', width: 10, depth: 9 }, // MaterialMatch: Bento-Fassade aus Baustoffen, Swipe-Karten
+  terra: { roof: 'flat', width: 9, depth: 9 },         // TERRA-Sim: Arbeitsmodell auf Geländesockel mit Gefahren
 };
 export const PASSIV_UPGRADES = ['Solardach', 'Holzfaserfassade', 'Wärmepumpe', 'Fassadengrün', 'Regenspeicher', 'E-Ladesäule'];
 export const EFFIZIENZ = ['G', 'F', 'E', 'D', 'C', 'B', 'A'];
@@ -93,6 +96,32 @@ export const MAP_LAYERS = ['Grünflächen', 'Hauptstraßen', 'Buslinie', 'Radweg
 export const mapLayerCount = (hs) => Math.min(MAP_LAYERS.length, hs.floors + 1);
 // Stadthaus in drei Abschnitten, die nach außen ansteigen wie ein Renditechart
 export const renditeSteps = (floors) => [Math.max(1, Math.round(floors * 0.5)), Math.max(1, Math.round(floors * 0.75)), floors];
+// urban-analyst: Bausteine in den Legendenfarben der App, von unten nach oben ein Geschoss je Layer
+export const UA_LAYERS = [
+  ['Gebäude', '#9c7bd6'], ['Straßen', '#d8d3e3'], ['Grün', '#6e9f5d'], ['Wasser', '#6bb7e8'], ['ÖPNV', '#b07fe0'],
+  ['Bahn', '#e86fa0'], ['Bäume', '#4e8f4a'], ['Nutzung', '#c9a27e'], ['Sonnenbahn', '#f5b544'], ['Hochwasser', '#4c7fd9'],
+];
+// MaterialMatch: Baustoffe der Bento-Kacheln, und der Match wird mit jedem Geschoss besser
+export const MM_BAUSTOFFE = ['Holz', 'Lehm', 'Ziegel', 'Hanf', 'Beton', 'Stroh', 'Kalk', 'Stahl'];
+// Grund- und Linienfarbe der Schraffur je Baustoff
+export const MM_FARBEN = {
+  Holz: ['#dcb47e', '#a8773f'], Lehm: ['#d8b48a', '#b0865a'], Ziegel: ['#c7795a', '#f1e2d8'], Hanf: ['#e3d6a0', '#9f9152'],
+  Beton: ['#cac8c3', '#8f8c86'], Stroh: ['#ecd98f', '#bf9f43'], Kalk: ['#f1efe8', '#bdb7a6'], Stahl: ['#b7c0c9', '#66707a'],
+};
+export const matchScore = (floors) => Math.min(100, 40 + floors * 12);
+export const bentoRows = (floors, seed) => {
+  // je Geschoss zwei oder drei Kacheln, Breiten als Anteile der Fassade
+  const r = rng(seed + 21), rows = [];
+  for (let f = 0; f < floors; f++) {
+    if (f === 0) rows.push([0.38, 0.24, 0.38]); // Erdgeschoss: Tür in der Mitte
+    else if (r() < 0.5) { const a = 0.35 + r() * 0.3; rows.push([a, 1 - a]); }
+    else { const a = 0.22 + r() * 0.16, b = 0.22 + r() * 0.16; rows.push([a, b, 1 - a - b]); }
+  }
+  return rows;
+};
+// TERRA-Sim: Gefahren in der Reihenfolge der README, je Geschoss kommt eine dazu
+export const TERRA_GEFAHREN = ['Hochwasser', 'Starkregen', 'Starkwind', 'Erdbeben', 'Tornado', 'Kaiju-Angriff', 'Alien-Invasion'];
+export const terraCount = (hs) => Math.min(TERRA_GEFAHREN.length, hs.floors);
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export function styleLabel(hs) {
@@ -115,6 +144,9 @@ export function styleLabel(hs) {
     case 'holzrahmen': return `Holzrahmenbau im Schnitt · ${plural(n, 'Prüfmarke', 'Prüfmarken')}`;
     case 'kartenplatte': return `Weißmodell auf Kartenplatte · ${mapLayerCount(hs)} Layer`;
     case 'rendite': return `Stadthaus wie ein Renditechart · ${renditeSteps(n).join(' · ')} Geschosse`;
+    case 'layerturm': return `Layer-Turm · ${UA_LAYERS.slice(0, n).map((l) => l[0]).join(', ')}`;
+    case 'materialmatch': return `Bento-Haus · ${bentoRows(n, hs.seed).flat().length - 1} Baustoff-Kacheln · Match ${matchScore(n)} %`;
+    case 'terra': return `Arbeitsmodell auf Geländesockel · ${terraCount(hs)} von ${TERRA_GEFAHREN.length} Gefahren: ${TERRA_GEFAHREN.slice(0, terraCount(hs)).join(', ')}`;
   }
   return null;
 }
@@ -219,7 +251,8 @@ export function nurdachCells() {
   return cells;
 }
 
-export function houseFor(name, commits, empty, language, style) {
+// opts.startGeschoss: Nachzügler starten höher (3 = das erste Commit bringt schon drei Geschosse)
+export function houseFor(name, commits, empty, language, style, opts = {}) {
   const r = rng(hash(name.toLowerCase()));
   const pick = (arr) => arr[Math.floor(r() * arr.length)];
   const material = materialFor(language);
@@ -231,7 +264,7 @@ export function houseFor(name, commits, empty, language, style) {
     material,
     facade: pick(MATERIALS[material].colors),
     roofColor: pick(ROOF_COLORS),
-    floors: empty ? 0 : floorsFor(commits),
+    floors: empty ? 0 : floorsFor(commits) + Math.max(0, (opts.startGeschoss ?? 1) - 1),
     seed: hash(name),
   };
   if (style === 'voxel') {

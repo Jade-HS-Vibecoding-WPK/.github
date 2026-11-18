@@ -5,12 +5,13 @@
   "siteUrl": "https://jade-hs-vibecoding-wpk.github.io/.github/",
   "exclude": [".github"],
   "overrides": {
-    "Bau-Normen": { "team": ["Freckle02"], "house": "nurdach" },
+    "TERRA-Sim": { "house": "terra" },
+    "ParaGecko": { "team": ["Freckle02"], "house": "nurdach" },
     "urban-analysis-plugin": { "house": "voxel", "setzlinge": true },
     "gebaeudehoehentool-umgebungsmodell": { "house": "hoehenmodell" },
     "laserdatei-aus-3D": { "house": "karton" },
     "Grundstuecksanalyse-Tool": { "house": "plankopf" },
-    "Mapping-Tool-Architektur": { "house": "schwarzplan" },
+    "SiteKick": { "house": "schwarzplan" },
     "Modellbau-Laserdatei-Gebaeude": { "house": "laserplatte" },
     "Energieeffizienz-Oekobilanz-Optimierung": { "house": "passivhaus" },
     "CO-Emissionsrechner": { "house": "swiss" },
@@ -22,6 +23,8 @@
     "Workflow_App": { "house": "kacheln" },
     "Detailpruefer": { "house": "holzrahmen" },
     "Standortanalyse-": { "house": "kartenplatte" },
-    "Kaufcheck": { "house": "rendite" }
+    "ImmoCheck": { "house": "rendite" },
+    "urban-analyst": { "house": "layerturm", "startGeschoss": 3 },
+    "MaterialMatch": { "house": "materialmatch", "startGeschoss": 3 }
   }
 }

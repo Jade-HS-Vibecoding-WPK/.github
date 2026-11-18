@@ -4,7 +4,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { FLOOR_H, rng, EFFIZIENZ, PASSIV_UPGRADES, SWATCHES, mapLayerCount, renditeSteps } from './house.mjs';
+import {
+  FLOOR_H, rng, hash, EFFIZIENZ, PASSIV_UPGRADES, SWATCHES, mapLayerCount, renditeSteps,
+  UA_LAYERS, MM_BAUSTOFFE, MM_FARBEN, matchScore, bentoRows, terraCount,
+} from './house.mjs';
 
 let K; // Werkzeugkasten aus street.js: mat, mesh, box, boxGeo, meterUVs, facadeMaterial, addDoor, …
 
@@ -743,7 +746,7 @@ function kartenplatte(g, p, hs) {
   return { hedges: false };
 }
 
-// ---------- 19 Kaufcheck: Stadthaus wie ein steigendes Balkendiagramm ----------
+// ---------- 19 ImmoCheck: Stadthaus wie ein steigendes Balkendiagramm ----------
 function rendite(g, p, hs) {
   const { W, D, fz } = dims(hs);
   const plaster = K.facadeMaterial('putz', '#f4f4f2');
@@ -778,8 +781,387 @@ function rendite(g, p, hs) {
   return {};
 }
 
+// ---------- 20 urban-analyst: dunkler Layer-Turm, je Geschoss ein Analyse-Layer in Legendenfarbe ----------
+function layerturm(g, p, hs) {
+  const { W, D, H, fz } = dims(hs);
+  const PW = W + 4, PD = D + 3, pz = -0.3, inset = 0.45;
+  const cw = 640, ch = Math.round((cw * PD) / PW);
+  const px = (x) => ((x + PW / 2) / PW) * cw, pzc = (z) => ((z - (pz - PD / 2)) / PD) * ch;
+  // dunkle Grundkarte wie in der App, mit gezeichnetem Untersuchungsgebiet
+  const map = mapTex(`ua:${W}x${D}:${K.gs}`, cw, ch, (c) => {
+    const r = rng(20);
+    c.fillStyle = '#17161d'; c.fillRect(0, 0, cw, ch);
+    c.fillStyle = '#2c3a28'; c.fillRect(0, ch * 0.5, cw * 0.17, ch * 0.5); c.fillRect(cw * 0.85, 0, cw * 0.15, ch * 0.45);
+    c.fillStyle = '#1e3a4f'; c.fillRect(cw * 0.85, ch * 0.62, cw * 0.15, ch * 0.3);
+    c.fillStyle = '#2a2833';
+    for (let i = 0; i < 18; i++) {
+      const x = r() < 0.5 ? r() * 0.12 : 0.87 + r() * 0.1;
+      c.fillRect(x * cw, r() * 0.45 * ch, 12 + r() * 22, 10 + r() * 20);
+    }
+    const road = (w, pts) => {
+      c.strokeStyle = '#d8d3e3'; c.lineWidth = w; c.lineCap = 'round';
+      c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x * cw, y * ch) : c.moveTo(x * cw, y * ch))); c.stroke();
+    };
+    road(7, [[0, 0.97], [1, 0.97]]); road(3, [[0.075, 0], [0.075, 0.97]]); road(3, [[0.93, 0.97], [0.93, 0]]); road(1.5, [[0, 0.32], [0.075, 0.32]]);
+    // Haltestelle mit Einzugsradius
+    c.strokeStyle = 'rgba(176,127,224,.75)'; c.lineWidth = 2; c.setLineDash([6, 6]);
+    c.beginPath(); c.arc(cw * 0.075, ch * 0.97, ch * 0.32, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+    c.fillStyle = '#b07fe0'; c.beginPath(); c.arc(cw * 0.075, ch * 0.97, 7, 0, Math.PI * 2); c.fill();
+    // Untersuchungsgebiet: gestricheltes Rechteck in Akzentviolett
+    const ax = px(-W / 2 - 0.9), az = pzc(-D / 2 - 0.9), aw = ((W + 1.8) / PW) * cw, ah = ((D + 1.8) / PD) * ch;
+    c.fillStyle = 'rgba(139,92,246,.14)'; c.fillRect(ax, az, aw, ah);
+    c.strokeStyle = '#8b5cf6'; c.lineWidth = 4; c.setLineDash([16, 10]); c.strokeRect(ax, az, aw, ah); c.setLineDash([]);
+    c.fillStyle = '#a78bfa'; c.font = '700 17px system-ui, sans-serif'; c.textAlign = K.gs > 0 ? 'left' : 'right';
+    c.fillText(`${Math.round((W + 1.8) * (D + 1.8))} m²`, K.gs > 0 ? ax + 8 : ax + aw - 8, az + ah - 9);
+    // Nordpfeil und Maßstabsbalken wie im Export
+    const nx = K.gs > 0 ? cw * 0.93 : cw * 0.07, ny = ch * 0.1;
+    c.fillStyle = '#ecebf1';
+    c.beginPath(); c.moveTo(nx, ny - 18); c.lineTo(nx + 9, ny + 10); c.lineTo(nx, ny + 4); c.lineTo(nx - 9, ny + 10); c.closePath(); c.fill();
+    c.font = '700 13px system-ui, sans-serif'; c.textAlign = 'center'; c.fillText('N', nx, ny + 26);
+    for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#17161d' : '#ecebf1'; c.fillRect(nx - 28 + i * 14, ny + 34, 14, 5); }
+    c.strokeStyle = '#ecebf1'; c.lineWidth = 1; c.strokeRect(nx - 28, ny + 34, 56, 5);
+  });
+  const edge = K.mat('#0f0e13');
+  const top = texMat(`ua-top:${W}x${D}:${K.gs}`, () => new THREE.MeshStandardMaterial({ map, roughness: 0.9 }));
+  g.add(at(K.mesh(new THREE.BoxGeometry(PW, 0.1, PD), [edge, edge, top, edge, edge, edge], { cast: false }), 0, 0.05, pz));
+  // Glaskern, darüber je Geschoss eine Decke mit leuchtender Kante in der Layerfarbe
+  const panel = K.mat('#1f1d26', { roughness: 0.7 });
+  body(g, W - 2 * inset, H, D - 2 * inset, K.mat('#14131a', { roughness: 0.25, metalness: 0.4 }));
+  g.add(K.box(W, 0.2, D, panel, 0, 0.1, 0));
+  for (let f = 0; f < hs.floors; f++) {
+    const [name, color] = UA_LAYERS[f % UA_LAYERS.length];
+    const y = (f + 1) * FLOOR_H - 0.16;
+    g.add(K.box(W, 0.32, D, panel, 0, y, 0));
+    g.add(K.box(W + 0.12, 0.09, D + 0.12, K.mat(color, { emissive: color, emissiveIntensity: 0.6, roughness: 0.5 }), 0, y, 0, { cast: false }));
+    g.add(at(textPlate(name, 1.9, 0.32, { color, bg: '#17161d', size: 0.6 }), -K.gs * (W / 2 - 1.2), y, D / 2 + 0.07));
+  }
+  windows(g, hs, { frame: null, dark: K.mat('#2d2640', { roughness: 0.2, metalness: 0.5 }), ww: 1.5, wh: 2.0, y0: 1.4, cols: 4, out: -inset + 0.02 });
+  K.addDoor(g, fz - inset, K.plateTex);
+  // auf dem Dach die 3D-Ansicht: kleine Gebäude nach Höhe
+  const r = rng(hs.seed + 20), blocks = [];
+  for (let i = 0; i < 14; i++) {
+    const bw = 0.6 + r() * 1.0, bd = 0.6 + r() * 1.0, bh = 0.3 + r() ** 2 * 1.8;
+    blocks.push(K.boxGeo(bw, bh, bd, (r() - 0.5) * (W - 2.6), H + bh / 2, (r() - 0.5) * (D - 2.6)));
+  }
+  add(g, merged(blocks, K.mat('#9c7bd6', { roughness: 0.6 })));
+  return { hedges: false };
+}
+
+// ---------- 21 MaterialMatch: Bento-Fassade aus Baustoff-Kacheln, Swipe-Karten im Garten ----------
+const BAUSTOFF_FARBEN = MM_FARBEN;
+// Schraffur je Baustoff, wie die Materialillustrationen der App
+function hatchTex(name) {
+  return tex(`hatch:${name}`, 128, 128, (c) => {
+    const [bg, fg] = BAUSTOFF_FARBEN[name];
+    const r = rng(hash(name));
+    c.fillStyle = bg; c.fillRect(0, 0, 128, 128);
+    c.strokeStyle = fg; c.fillStyle = fg; c.lineWidth = 3; c.lineCap = 'round';
+    const ln = (x1, y1, x2, y2) => { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+    switch (name) {
+      case 'Holz':
+        for (let y = 8; y < 128; y += 16) { c.beginPath(); for (let x = 0; x <= 128; x += 8) c.lineTo(x, y + Math.sin(x / 20 + y) * 3); c.stroke(); }
+        break;
+      case 'Lehm':
+        c.globalAlpha = 0.35;
+        for (let y = 0; y < 128; y += 32) c.fillRect(0, y, 128, 12);
+        c.globalAlpha = 1;
+        break;
+      case 'Ziegel':
+        c.lineWidth = 4;
+        for (let y = 0; y < 128; y += 21) { ln(0, y, 128, y); for (let x = (y / 21) % 2 ? 0 : 21; x < 128; x += 42) ln(x, y, x, y + 21); }
+        break;
+      case 'Hanf':
+        c.lineWidth = 2;
+        for (let d = -128; d < 128; d += 14) { ln(d, 0, d + 128, 128); ln(d + 128, 0, d, 128); }
+        break;
+      case 'Beton':
+        for (let i = 0; i < 60; i++) { c.beginPath(); c.arc(r() * 128, r() * 128, 1 + r() * 2.5, 0, Math.PI * 2); c.fill(); }
+        break;
+      case 'Stroh':
+        c.lineWidth = 2.5;
+        for (let i = 0; i < 70; i++) { const x = r() * 128, y = r() * 128; ln(x, y, x + 10, y - 6); }
+        break;
+      case 'Kalk':
+        for (let i = 0; i < 90; i++) c.fillRect(r() * 128, r() * 128, 2, 2);
+        break;
+      case 'Stahl':
+        c.lineWidth = 2;
+        for (let d = -128; d < 256; d += 12) ln(d, 128, d + 128, 0);
+        break;
+    }
+  }, { repeat: true });
+}
+function hatchMat(name, w, h) {
+  return texMat(`hatch:${name}:${w.toFixed(1)}x${h.toFixed(1)}`, () => {
+    const t = hatchTex(name).clone();
+    t.repeat.set(w / 1.4, h / 1.4);
+    t.needsUpdate = true;
+    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 });
+  });
+}
+function materialmatch(g, p, hs) {
+  const { W, D, H, fz } = dims(hs);
+  body(g, W, H, D, K.mat('#f5f6f8', { roughness: 0.8 }));
+  const ink = K.mat('#1f2530', { roughness: 0.3 });
+  windows(g, hs, { xs: [], frame: null, dark: ink, ww: 1.2, wh: 1.45 });
+  // Bento-Raster: je Geschoss zwei oder drei abgerundete Kacheln, jede ein Baustoff
+  const rows = bentoRows(hs.floors, hs.seed);
+  const gap = 0.18, usable = W - 0.3;
+  const win = [], lit = [];
+  let k = 0;
+  rows.forEach((row, f) => {
+    let x = -usable / 2;
+    row.forEach((frac, j) => {
+      const tw = usable * frac - gap, th = FLOOR_H - 0.24, cx = x + gap / 2 + tw / 2, cy = f * FLOOR_H + FLOOR_H / 2;
+      x += usable * frac;
+      const door = f === 0 && j === 1;
+      const name = MM_BAUSTOFFE[(k + (hs.seed % 3)) % MM_BAUSTOFFE.length];
+      const geo = new RoundedBoxGeometry(tw, th, 0.22, 2, 0.12);
+      g.add(at(K.mesh(geo, door ? K.mat('#ffffff', { roughness: 0.6 }) : hatchMat(name, tw, th)), cx, cy, fz + 0.11));
+      if (door) return;
+      k++;
+      const nw = tw >= 3.6 ? 2 : tw >= 1.7 ? 1 : 0;
+      for (let i = 0; i < nw; i++) {
+        const wx = cx + (nw === 2 ? ((i ? 1 : -1) * tw) / 4 : 0);
+        (K.active && K.r() < 0.55 ? lit : win).push(new RoundedBoxGeometry(1.1, 1.45, 0.1, 2, 0.1).translate(wx, cy + 0.15, fz + 0.24));
+      }
+    });
+  });
+  add(g, merged(win, ink, { cast: false }), merged(lit, K.litMat, { cast: false }));
+  K.addDoor(g, fz + 0.2, K.plateTex);
+  // Dach wie das Logo: drei versetzte Materialschichten
+  [['#b7cff0', 0], ['#5b8fd6', 0.5], ['#1f2530', 0]].forEach(([c, dx], i) => {
+    g.add(K.box(W - 0.6, 0.26, D - 0.6, K.mat(c, { roughness: 0.6 }), -K.gs * dx, H + 0.13 + i * 0.3, 0));
+  });
+  // Swipe-Karten im Garten: die vorderste ist nach rechts gewischt – Match
+  const score = matchScore(hs.floors);
+  const name = MM_BAUSTOFFE[(hs.seed % 3) % MM_BAUSTOFFE.length];
+  const sx = K.gs * (W / 2 + 1.7), sz = fz - 1.1;
+  g.add(K.box(2.4, 0.16, 0.9, K.mat('#e7f0fa'), sx, 0.08, sz));
+  const card = (color, dx, dz, rz, face) => {
+    const c = new THREE.Group();
+    c.add(K.mesh(new RoundedBoxGeometry(1.7, 2.4, 0.06, 2, 0.1), K.mat(color, { roughness: 0.6 })));
+    if (face) c.add(at(face, 0, 0, 0.035));
+    c.position.set(sx + dx, 0.16 + 1.2, sz + dz);
+    c.rotation.z = rz;
+    g.add(c);
+  };
+  card('#eee9fa', -K.gs * 0.18, -0.25, K.gs * 0.06);
+  card('#e7f0fa', 0, -0.12, -K.gs * 0.03);
+  const face = picture(`mm-card:${name}:${score}`, 1.6, 2.3, (c, cv) => {
+    const w = cv.width, h = cv.height;
+    c.fillStyle = '#ffffff'; c.fillRect(0, 0, w, h);
+    c.fillStyle = c.createPattern(hatchTex(name).image, 'repeat'); c.fillRect(w * 0.06, w * 0.06, w * 0.88, h * 0.52);
+    c.fillStyle = '#1f2530'; c.font = `800 ${Math.round(h * 0.1)}px Nunito, system-ui, sans-serif`; c.textAlign = 'left';
+    c.fillText(name, w * 0.08, h * 0.71);
+    c.fillStyle = '#e7f0fa'; c.fillRect(w * 0.08, h * 0.79, w * 0.84, h * 0.045);
+    c.fillStyle = '#2e9d6a'; c.fillRect(w * 0.08, h * 0.79, (w * 0.84 * score) / 100, h * 0.045);
+    c.font = `800 ${Math.round(h * 0.065)}px Nunito, system-ui, sans-serif`;
+    c.fillText(`♥ Match ${score} %`, w * 0.08, h * 0.93);
+  }, 360);
+  card('#ffffff', K.gs * 0.35, 0.02, -K.gs * 0.2, face);
+  // Knöpfe davor: Nein und Ja
+  const btn = (key, color, glyph, dx) => g.add(at(badge(key, 0.5, (c, s) => {
+    c.fillStyle = '#ffffff'; c.beginPath(); c.arc(s / 2, s / 2, s * 0.46, 0, Math.PI * 2); c.fill();
+    c.fillStyle = color; c.font = `800 ${Math.round(s * 0.55)}px system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(glyph, s / 2, s * 0.54);
+  }), sx + dx, 0.42, sz + 0.47));
+  btn('mm-nein', '#d9534f', '✕', -1.0);
+  btn('mm-ja', '#2e9d6a', '♥', 1.0);
+  return {};
+}
+
+// ---------- 1 TERRA-Sim: Arbeitsmodell auf Geländesockel, Wasser steigt und fällt, je Geschoss eine Gefahr ----------
+// Linien, die sich gleichmäßig in eine Richtung bewegen und von vorn beginnen (Regen, Wind)
+function streaks(count, seed, spawn, dir, span, len, speed, color, opacity = 0.85) {
+  const r = rng(seed), base = [], phase = [];
+  for (let i = 0; i < count; i++) { base.push(spawn(r)); phase.push(r() * span); }
+  const pos = new Float32Array(count * 6);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+  lines.frustumCulled = false;
+  const update = (t) => {
+    for (let i = 0; i < count; i++) {
+      const d = (phase[i] + t * speed) % span, [x, y, z] = base[i];
+      const ax = x + dir[0] * d, ay = y + dir[1] * d, az = z + dir[2] * d;
+      pos.set([ax, ay, az, ax + dir[0] * len, ay + dir[1] * len, az + dir[2] * len], i * 6);
+    }
+    geo.attributes.position.needsUpdate = true;
+  };
+  update(0);
+  return { lines, update };
+}
+function segGeo(a, b, t = 0.06) {
+  const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const geo = new THREE.BoxGeometry(t, t * 0.5, d.length() + t);
+  geo.lookAt(d);
+  return geo.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+}
+function terra(g, p, hs) {
+  const { W, D, H, fz } = dims(hs);
+  const n = terraCount(hs), gs = K.gs, S = 0.6;
+  const PW = W + 6, PD = D + 4, cx = gs * 1.2, pz = -0.4;
+  const front = pz + PD / 2, back = pz - PD / 2;
+  // Geländesockel mit Höhenlinien um den Hügel
+  const cw = 640, ch = Math.round((cw * PD) / PW);
+  const hx = gs * (W / 2 + 2.2), hz = -D / 2 + 0.2; // Hügel hinten auf der Gartenseite
+  const topTex = mapTex(`terra:${W}x${D}:${gs}`, cw, ch, (c) => {
+    c.fillStyle = '#e3efdf'; c.fillRect(0, 0, cw, ch);
+    const ux = ((hx - cx + PW / 2) / PW) * cw, uz = ((hz - back) / PD) * ch;
+    c.strokeStyle = '#a9c9a4'; c.lineWidth = 2;
+    for (let k = 1; k < 12; k++) {
+      c.beginPath();
+      for (let a = 0; a <= 64; a++) {
+        const t = (a / 64) * Math.PI * 2, rr = k * 26 * (1 + 0.12 * Math.sin(t * 3 + k));
+        c.lineTo(ux + Math.cos(t) * rr, uz + Math.sin(t) * rr * 1.3);
+      }
+      c.stroke();
+    }
+    c.fillStyle = '#c9c6bd'; c.fillRect(0, ch * 0.9, cw, ch * 0.06); // Weg vorn
+  });
+  const side = K.mat('#2f3a33', { roughness: 0.9 });
+  const topM = texMat(`terra-top:${W}x${D}:${gs}`, () => new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.95 }));
+  g.add(at(K.mesh(new THREE.BoxGeometry(PW, S, PD), [side, side, topM, side, side, side]), cx, S / 2, pz));
+  g.add(at(K.mesh(new THREE.BoxGeometry(PW + 0.04, 0.05, PD + 0.04), K.mat('#7fb27a'), { cast: false }), cx, S - 0.02, pz));
+  const m = new THREE.Group();
+  m.position.y = S;
+  g.add(m);
+  // Höhenschichten des Hügels
+  ['#cfe3c4', '#b3d4a6', '#93c088', '#74a96c'].forEach((c, k) => {
+    const rad = 1.9 - k * 0.42;
+    const geo = new THREE.CylinderGeometry(rad, rad, 0.3, 11).scale(1, 1, 1.35);
+    m.add(at(K.mesh(geo, K.mat(c, { flatShading: true, roughness: 0.95 })), hx, k * 0.3 + 0.15, hz));
+  });
+  // Haus als weißes Arbeitsmodell mit feinen Kanten; das Erdgeschoss färbt sich bei Hochwasser rot
+  const white = K.mat('#f4f5f2', { roughness: 0.9 });
+  const groundMat = new THREE.MeshStandardMaterial({ color: '#f4f5f2', roughness: 0.9 });
+  body(m, W, FLOOR_H, D, groundMat);
+  if (hs.floors > 1) body(m, W, H - FLOOR_H, D, white, 0, FLOOR_H);
+  m.add(edges(new THREE.BoxGeometry(W, H, D), '#2b3a2f', 0, H / 2, 0));
+  const lines = [];
+  for (let f = 1; f < hs.floors; f++) lines.push(K.boxGeo(W + 0.03, 0.05, D + 0.03, 0, f * FLOOR_H, 0));
+  add(m, merged(lines, K.mat('#c9d3c8'), { cast: false }));
+  windows(m, hs, { frame: null, dark: K.mat('#3d5a48', { roughness: 0.4 }) });
+  K.addDoor(m, fz, K.plateTex);
+  flatRoof(m, W, D, H, white, { over: 0.1, t: 0.25, line: '#2b3a2f' });
+  // Hochwasser: Wasser über dem ganzen Sockel, steigt und fällt
+  const water = new THREE.Mesh(
+    new THREE.BoxGeometry(PW - 0.04, 1, PD - 0.04),
+    new THREE.MeshStandardMaterial({ color: '#3d8fd6', transparent: true, opacity: 0.5, roughness: 0.12, metalness: 0.1, depthWrite: false }),
+  );
+  water.position.set(cx, 0, pz);
+  water.renderOrder = 2;
+  m.add(water);
+  const WHITE = new THREE.Color('#f4f5f2'), RED = new THREE.Color('#e0645a');
+  const anims = [];
+  const setLevel = (lv) => {
+    water.scale.y = Math.max(0.001, lv);
+    water.position.y = lv / 2;
+    groundMat.color.copy(WHITE).lerp(RED, Math.min(1, Math.max(0, lv / 0.45)));
+  };
+  anims.push((t) => setLevel(0.42 + 0.42 * Math.sin((t * Math.PI * 2) / 26)));
+  setLevel(0.5);
+  if (n >= 2) { // Starkregen: Wolke über dem Garten, Fallrohr an der Ecke
+    const cy = 4.4, ccx = gs * (W / 2 + 2.3), ccz = front - 2.0;
+    const puffs = [[0, 0, 0, 0.8], [0.7, -0.1, 0.1, 0.6], [-0.7, -0.1, -0.1, 0.62], [0.2, 0.35, -0.2, 0.6], [-0.3, 0.2, 0.35, 0.5]]
+      .map(([x, y, z, s]) => new THREE.IcosahedronGeometry(s, 1).translate(ccx + x, cy + y, ccz + z));
+    m.add(K.mesh(mergeGeometries(puffs), K.mat('#9aa5ad', { flatShading: true, roughness: 1 })));
+    const rain = streaks(46, 2, (r) => [ccx + (r() - 0.5) * 2.0, cy - 0.4, ccz + (r() - 0.5) * 1.6], [0, -1, 0], cy - 0.4, 0.35, 5.5, '#4c8fd9');
+    m.add(rain.lines);
+    anims.push(rain.update);
+    m.add(at(K.mesh(new THREE.CylinderGeometry(0.07, 0.07, H, 8), K.mat('#8f9a93')), gs * (W / 2 + 0.1), H / 2, fz - 0.15));
+  }
+  if (n >= 3) { // Starkwind: blauer Windpfeil über dem Dach und Windteilchen
+    const blue = K.mat('#2f6fdf', { roughness: 0.5 });
+    const arrow = new THREE.Group();
+    arrow.add(K.mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 10).rotateZ(Math.PI / 2), blue));
+    arrow.add(at(K.mesh(new THREE.ConeGeometry(0.34, 0.7, 12).rotateZ(-Math.PI / 2), blue), 1.65, 0, 0));
+    arrow.scale.x = gs;
+    arrow.position.set(0, H + 1.4, 0);
+    m.add(arrow);
+    const wind = streaks(38, 3, (r) => (r() < 0.5
+      ? [cx - (gs * PW) / 2, 0.4 + r() * 1.6, fz + 0.4 + r() * (front - fz - 0.5)]
+      : [cx - (gs * PW) / 2, H + 0.4 + r() * 2.2, (r() - 0.5) * D]), [gs, 0, 0], PW, 0.7, 3.2, '#cfe0f5', 0.9);
+    m.add(wind.lines);
+    anims.push(wind.update);
+  }
+  if (n >= 4) { // Erdbeben: Riss durch Vorgarten und Sockel, Warnschild
+    const x0 = -gs * (W / 2 - 1.2), crack = K.mat('#1d2420');
+    const pts = [[x0, 0.005, fz + 0.3], [x0 + 0.35, 0.005, fz + 0.8], [x0 - 0.15, 0.005, fz + 1.3], [x0 + 0.2, 0.005, front]];
+    const geos = [];
+    for (let i = 0; i < pts.length - 1; i++) geos.push(segGeo(pts[i], pts[i + 1]));
+    const f = [[x0 + 0.2, 0, front + 0.01], [x0 - 0.05, -0.2, front + 0.01], [x0 + 0.15, -0.38, front + 0.01], [x0 - 0.02, -0.6, front + 0.01]];
+    for (let i = 0; i < f.length - 1; i++) geos.push(segGeo(f[i], f[i + 1], 0.05));
+    m.add(K.mesh(mergeGeometries(geos), crack, { cast: false }));
+    const sx = -gs * (W / 2 + 0.9);
+    m.add(K.box(0.07, 1.1, 0.07, K.mat('#8f9a93'), sx, 0.55, front - 0.4));
+    m.add(at(badge('terra-warn', 0.62, (c, s) => {
+      c.fillStyle = '#f08a24'; c.strokeStyle = '#ffffff'; c.lineWidth = s * 0.05; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(s / 2, s * 0.1); c.lineTo(s * 0.93, s * 0.86); c.lineTo(s * 0.07, s * 0.86); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = '#1d2420'; c.font = `800 ${Math.round(s * 0.45)}px system-ui, sans-serif`; c.textAlign = 'center'; c.fillText('!', s / 2, s * 0.78);
+    }), sx, 1.25, front - 0.36));
+  }
+  if (n >= 5) { // Tornado: drehender Trichter im Garten
+    const tw = new THREE.Group(), rings = [];
+    const tm = new THREE.MeshStandardMaterial({ color: '#6f7a81', transparent: true, opacity: 0.62, roughness: 1, side: THREE.DoubleSide, depthWrite: false });
+    for (let i = 0; i < 7; i++) {
+      const r0 = 0.12 + i * 0.16, r1 = 0.12 + (i + 1) * 0.16;
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, 0.5, 14, 1, true), tm);
+      ring.position.y = 0.25 + i * 0.5;
+      tw.add(ring);
+      rings.push(ring);
+    }
+    tw.position.set(gs * (W / 2 + 2.4), 0, -0.4);
+    m.add(tw);
+    anims.push((t) => {
+      tw.rotation.y = t * 3;
+      rings.forEach((ring, i) => { ring.position.x = Math.sin(t * 1.4 + i * 0.7) * 0.06 * i; });
+    });
+  }
+  if (n >= 6) { // Kaiju-Angriff: Monster auf dem Hügel, schaut zum Haus
+    const kj = new THREE.Group();
+    const skin = K.mat('#4f8a4b', { flatShading: true, roughness: 0.8 }), belly = K.mat('#a9cf8f', { roughness: 0.8 });
+    const spike = K.mat('#d4e6a8', { flatShading: true });
+    kj.add(K.box(0.7, 1.4, 0.8, skin, -0.45, 0.7, 0), K.box(0.7, 1.4, 0.8, skin, 0.45, 0.7, 0));
+    kj.add(at(K.mesh(new THREE.BoxGeometry(1.7, 2.4, 1.3), skin), 0, 2.4, -0.1));
+    kj.add(K.box(1.2, 1.9, 0.1, belly, 0, 2.3, 0.56));
+    kj.add(at(K.mesh(new THREE.ConeGeometry(0.6, 2.6, 8).rotateX(-Math.PI / 2.4), skin), 0, 1.1, -1.6));
+    const head = new THREE.Group();
+    head.add(K.box(1.2, 0.95, 1.1, skin, 0, 0, 0), K.box(0.95, 0.55, 0.7, skin, 0, -0.15, 0.8));
+    for (const s of [-1, 1]) {
+      head.add(K.box(0.22, 0.22, 0.05, K.mat('#ffffff'), s * 0.32, 0.2, 0.56));
+      head.add(K.box(0.1, 0.12, 0.04, K.mat('#1d2420'), s * 0.32, 0.18, 0.59));
+    }
+    head.position.set(0, 4.0, 0.15);
+    kj.add(head);
+    for (const s of [-1, 1]) kj.add(at(K.mesh(new THREE.BoxGeometry(0.3, 0.3, 0.9).rotateX(-0.6), skin), s * 0.95, 2.9, 0.45));
+    for (let i = 0; i < 5; i++) kj.add(at(K.mesh(new THREE.ConeGeometry(0.2, 0.55 - i * 0.05, 5), spike), 0, 3.7 - i * 0.55, -0.75 - i * 0.12));
+    kj.scale.setScalar(1.6);
+    kj.position.set(hx, 1.2, hz);
+    kj.rotation.y = -gs * 0.9;
+    m.add(kj);
+    anims.push((t) => { head.rotation.y = Math.sin(t * 0.7) * 0.35; kj.position.y = 1.2 + Math.abs(Math.sin(t * 1.6)) * 0.08; });
+  }
+  if (n >= 7) { // Alien-Invasion: Untertasse kreist über dem Dach
+    const ufo = new THREE.Group();
+    ufo.add(K.mesh(new THREE.SphereGeometry(1.5, 24, 12).scale(1, 0.22, 1), K.mat('#c3c9ce', { metalness: 0.6, roughness: 0.3 })));
+    ufo.add(at(K.mesh(new THREE.SphereGeometry(0.6, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#9fe0c0', transparent: true, opacity: 0.75 })), 0, 0.2, 0));
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(1.3, 3.0, 20, 1, true), new THREE.MeshBasicMaterial({ color: '#b6f5c8', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
+    beam.position.y = -1.6;
+    ufo.add(beam);
+    m.add(ufo);
+    const fly = (t) => { ufo.position.set(Math.cos(t * 0.4) * 2.2, H + 4.2 + Math.sin(t * 1.1) * 0.2, Math.sin(t * 0.4) * 2.2); ufo.rotation.y = t * 1.5; };
+    fly(0);
+    anims.push(fly);
+  }
+  if (!K.still) K.onFrame((t) => { for (const a of anims) a(t); });
+  return { hedges: false };
+}
+
 const BUILDERS = {
   hoehenmodell, karton, plankopf, schwarzplan, laserplatte, passivhaus, swiss, planpruefer,
   glas, musterfassade, treppe, sperrholz, kacheln, holzrahmen, kartenplatte, rendite,
+  layerturm, materialmatch, terra,
 };
 export const STYLED = new Set(Object.keys(BUILDERS));

@@ -533,6 +533,9 @@ function numberPlate(g, plateTex, x, y, z) {
 }
 // Dinge, die sich mit der Uhrzeit ändern (z. B. die Jetzt-Linie am Gantt-Haus), alle 30 s
 const tickers = [];
+// Bewegte Teile einzelner Bauweisen (Wasserstand, Tornado, Wind …), einmal pro Bild
+const framers = [];
+let frameTime = 0;
 
 function addDoor(g, front, plateTex) {
   g.add(box(1.4, 2.45, 0.08, frameMat, 0, 1.5, front + 0.02, { cast: false }));
@@ -880,6 +883,7 @@ function buildHouse(p, index, signTex, plateTex) {
       mat, mesh, box, boxGeo, meterUVs, facadeMaterial, addDoor, buildRoof, glassMat, litMat, frameMat,
       numberPlate: (gg, x, y, zz) => numberPlate(gg, plateTex, x, y, zz),
       plateTex, r, active, gs: side < 0 ? 1 : -1, onTick: (fn) => tickers.push(fn),
+      onFrame: (fn) => framers.push(fn), still: reduceMotion,
     });
   } else if (hs.floors > 0) {
     g.add(box(W + 0.3, 0.3, D + 0.3, mat('#8f8a82'), 0, 0.15, 0));
@@ -2127,6 +2131,8 @@ function update(dt) {
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
   updateEnvironment(dt);
+  frameTime += dt;
+  for (const f of framers) f(frameTime, dt);
   const sz = Math.round(pos.z / 4) * 4;
   lights.sun.target.position.set(0, 0, sz - 10);
   lights.sun.position.copy(lights.sun.target.position).addScaledVector(envNow.dir, 150);

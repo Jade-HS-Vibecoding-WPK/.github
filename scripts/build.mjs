@@ -125,7 +125,7 @@ async function describe(repo) {
     .filter((c) => c.login && c.type === 'User')
     .map((c) => ({ login: c.login, avatar: c.avatar_url, url: c.html_url, commits: c.contributions }));
 
-  const override = config.overrides?.[repo.name] ?? {};
+  const override = overrides.get(repo.name) ?? {};
   // Team von Hand festlegen (z. B. wenn jemand anderes das Repo nur angelegt hat)
   if (Array.isArray(override.team)) {
     const people = await Promise.all(
@@ -158,14 +158,26 @@ async function describe(repo) {
     empty,
     team,
     image: override.image ?? readmeImage(md, repo, readme?.path ?? 'README.md'),
-    house: { ...houseFor(repo.name, commits, empty, repo.language, override.house), ...(override.setzlinge ? { saplings: true } : {}) },
+    house: {
+      ...houseFor(repo.name, commits, empty, repo.language, override.house, { startGeschoss: override.startGeschoss }),
+      ...(override.setzlinge ? { saplings: true } : {}),
+    },
   };
 }
 
 const repos = await listRepos();
-// Einstellungen für Repos, die es (unter diesem Namen) nicht mehr gibt – meist umbenannt
-for (const name of Object.keys(config.overrides ?? {})) {
-  if (!repos.some((r) => r.name === name)) console.warn(`::warning::street.config.json: kein Repo „${name}“ (umbenannt?), Einstellungen greifen nicht`);
+// Einstellungen je Repo. Wurde ein Repo umbenannt, leitet GitHub den alten Namen weiter –
+// so behält es seine Einstellungen, auch bevor street.config.json angepasst ist.
+const overrides = new Map();
+for (const [name, value] of Object.entries(config.overrides ?? {})) {
+  let repo = repos.find((r) => r.name === name);
+  if (!repo) {
+    const moved = await gh(`/repos/${ORG}/${encodeURIComponent(name)}`);
+    repo = moved && repos.find((r) => r.id === moved.id);
+    if (repo) console.warn(`::notice::street.config.json: „${name}“ heißt jetzt „${repo.name}“, bitte dort umbenennen`);
+  }
+  if (!repo) console.warn(`::warning::street.config.json: kein Repo „${name}“, Einstellungen greifen nicht`);
+  else if (!overrides.has(repo.name) || repo.name === name) overrides.set(repo.name, value);
 }
 const projects = (await Promise.all(repos.map(describe))).sort((a, b) =>
   a.createdAt.localeCompare(b.createdAt),

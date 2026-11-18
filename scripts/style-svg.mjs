@@ -1,7 +1,9 @@
 // Ansicht von der Straße für die eigenen Bauweisen (site/styles.js), fürs README-Banner.
 // Was sich mit der Uhrzeit ändert (z. B. die Jetzt-Linie), bleibt hier weg, damit das
 // Banner nicht bei jedem Lauf der Action neu committet wird.
-import { FLOOR_H, rng, EFFIZIENZ, SWATCHES, mapLayerCount, renditeSteps } from '../site/house.mjs';
+import {
+  FLOOR_H, rng, EFFIZIENZ, SWATCHES, mapLayerCount, renditeSteps, UA_LAYERS, MM_BAUSTOFFE, MM_FARBEN, bentoRows, terraCount,
+} from '../site/house.mjs';
 
 const n1 = (v) => +v.toFixed(1);
 const rect = (x, y, w, h, fill, extra = '') => `<rect x="${n1(x)}" y="${n1(y)}" width="${n1(w)}" height="${n1(h)}" fill="${fill}"${extra}/>`;
@@ -14,6 +16,9 @@ export function styleSideExtra(h) {
   if (h.style === 'swiss') return 4.2;
   if (h.style === 'treppe') return h.floors > 1 ? 1.6 : 0;
   if (h.style === 'passivhaus') return (h.level ?? 0) >= 3 ? 2.2 : 0;
+  if (h.style === 'materialmatch') return 2.8;
+  if (h.style === 'terra') return 3.4;
+  if (h.style === 'layerturm') return 0.6;
   return 0;
 }
 
@@ -266,6 +271,115 @@ export function styleSvg(p, x, groundY, s, kit) {
         top = Math.min(top, groundY - sh - 0.22 * s);
       });
       out.push(door(x, w, groundY, s));
+      break;
+    }
+    case 'layerturm': {
+      const ins = 0.45 * s;
+      out.push(rect(x - 0.6 * s, groundY - 0.1 * s, w + 1.2 * s, 0.1 * s, '#17161d'));
+      out.push(rect(x + ins, y0, w - 2 * ins, H * s, '#14131a'));
+      out.push(grid(h, x, groundY, s, { fill: '#2d2640', ww: 1.5, wh: 2.0, xs: [0.125, 0.375, 0.625, 0.875].map((f) => f * W) }));
+      out.push(rect(x, groundY - 0.2 * s, w, 0.2 * s, '#1f1d26'));
+      for (let f = 0; f < h.floors; f++) {
+        const yt = groundY - (f + 1) * FLOOR_H * s;
+        out.push(rect(x, yt, w, 0.32 * s, '#1f1d26'));
+        out.push(rect(x - 0.06 * s, yt + 0.115 * s, w + 0.12 * s, 0.09 * s, UA_LAYERS[f % UA_LAYERS.length][1]));
+      }
+      out.push(door(x, w, groundY, s));
+      const r = rng(h.seed + 20);
+      for (let i = 0; i < 7; i++) {
+        const bw = 0.6 + r(), bh = 0.3 + r() ** 2 * 1.8, bx = 1.3 + r() * (W - 2.6 - bw);
+        out.push(rect(x + bx * s, y0 - bh * s, bw * s, bh * s, '#9c7bd6'));
+        top = Math.min(top, y0 - bh * s);
+      }
+      break;
+    }
+    case 'materialmatch': {
+      out.push(rect(x, y0, w, H * s, '#f5f6f8', ' class="ink"'));
+      const gap = 0.18, usable = W - 0.3;
+      let k = 0;
+      bentoRows(h.floors, h.seed).forEach((row, f) => {
+        let left = 0.15;
+        row.forEach((frac, j) => {
+          const tw = usable * frac - gap, th = FLOOR_H - 0.24;
+          const tx = x + (left + gap / 2) * s, ty = groundY - (f + 1) * FLOOR_H * s + 0.12 * s;
+          left += usable * frac;
+          const isDoor = f === 0 && j === 1;
+          const name = MM_BAUSTOFFE[(k + (h.seed % 3)) % MM_BAUSTOFFE.length];
+          out.push(rect(tx, ty, tw * s, th * s, isDoor ? '#ffffff' : MM_FARBEN[name][0], ` rx="${n1(0.15 * s)}"`));
+          if (isDoor) return;
+          k++;
+          const nw = tw >= 3.6 ? 2 : tw >= 1.7 ? 1 : 0;
+          for (let i = 0; i < nw; i++) {
+            const wx = tx + (tw / 2 + (nw === 2 ? ((i ? 1 : -1) * tw) / 4 : 0) - 0.55) * s;
+            out.push(rect(wx, ty + (th / 2 - 0.88) * s, 1.1 * s, 1.45 * s, '#1f2530', ` rx="${n1(0.1 * s)}"`));
+          }
+        });
+      });
+      out.push(door(x, w, groundY, s));
+      ['#b7cff0', '#5b8fd6', '#1f2530'].forEach((c, i) => out.push(rect(x + (0.3 + (i === 1 ? 0.5 : 0)) * s, y0 - (0.26 + i * 0.3) * s, w - 0.6 * s, 0.26 * s, c)));
+      top = y0 - 0.86 * s;
+      // Swipe-Karten neben dem Haus
+      const cx = x + w + 1.4 * s, cy = groundY - 0.16 * s - 1.2 * s;
+      [['#eee9fa', -0.18, 4], ['#e7f0fa', 0, -2], ['#ffffff', 0.3, -12]].forEach(([c, dx, deg]) => {
+        out.push(`<rect x="${n1(cx + dx * s - 0.85 * s)}" y="${n1(cy - 1.2 * s)}" width="${n1(1.7 * s)}" height="${n1(2.4 * s)}" rx="${n1(0.12 * s)}" fill="${c}" stroke="#c9d3e0" stroke-width="0.6" transform="rotate(${deg} ${n1(cx + dx * s)} ${n1(cy + 1.2 * s)})"/>`);
+      });
+      out.push(`<text x="${n1(cx + 0.3 * s)}" y="${n1(cy + 0.3 * s)}" font-size="9" font-weight="800" style="fill:#2e9d6a" text-anchor="middle" transform="rotate(-12 ${n1(cx + 0.3 * s)} ${n1(cy + 1.2 * s)})">♥</text>`);
+      out.push(rect(cx - 1.2 * s, groundY - 0.16 * s, 2.4 * s, 0.16 * s, '#e7f0fa'));
+      break;
+    }
+    case 'terra': {
+      const S = 0.6, n = terraCount(h), gy = groundY - S * s, yb = gy - H * s;
+      const px0 = x - 0.6 * s, pw = w + 4.0 * s, hx = x + w + 1.9 * s;
+      out.push(rect(px0, gy, pw, S * s, '#2f3a33'));
+      ['#cfe3c4', '#b3d4a6', '#93c088', '#74a96c'].forEach((c, k) => {
+        const rad = (1.5 - k * 0.32) * s;
+        out.push(rect(hx - rad, gy - (k + 1) * 0.3 * s, 2 * rad, 0.3 * s, c));
+      });
+      out.push(rect(x, gy - FLOOR_H * s, w, FLOOR_H * s, '#f2c9c3', stroke('#2b3a2f', 0.8)));
+      if (h.floors > 1) out.push(rect(x, yb, w, (H - FLOOR_H) * s, '#f4f5f2', stroke('#2b3a2f', 0.8)));
+      out.push(grid(h, x, gy, s, { fill: '#3d5a48' }), door(x, w, gy, s));
+      out.push(rect(x - 0.1 * s, yb - 0.25 * s, w + 0.2 * s, 0.25 * s, '#f4f5f2', stroke('#2b3a2f', 0.8)));
+      top = yb - 0.25 * s;
+      out.push(rect(px0, gy - 0.35 * s, pw, 0.35 * s, '#3d8fd6', ' fill-opacity="0.5"'));
+      out.push(rect(px0, gy - 0.05 * s, pw, 0.05 * s, '#7fb27a'));
+      if (n >= 2) { // Wolke mit Regen
+        const ccx = hx - 0.4 * s, ccy = gy - 4.4 * s;
+        for (let i = 0; i < 6; i++) {
+          const rx = ccx - 0.9 * s + i * 0.36 * s;
+          out.push(`<line x1="${n1(rx)}" y1="${n1(ccy + 0.6 * s + (i % 2) * 4)}" x2="${n1(rx)}" y2="${n1(ccy + 0.6 * s + (i % 2) * 4 + 7)}" stroke="#4c8fd9" stroke-width="0.8"/>`);
+        }
+        for (const [dx, dy, rr] of [[0, 0, 0.8], [0.7, 0.1, 0.6], [-0.7, 0.1, 0.62], [0.2, -0.35, 0.6]]) {
+          out.push(`<circle cx="${n1(ccx + dx * s)}" cy="${n1(ccy + dy * s)}" r="${n1(rr * s)}" fill="#9aa5ad"/>`);
+        }
+      }
+      if (n >= 3) { // Windpfeil über dem Dach
+        const ay = yb - 1.4 * s, ax = x + w / 2;
+        out.push(rect(ax - 1.3 * s, ay - 0.12 * s, 2.6 * s, 0.24 * s, '#2f6fdf'));
+        out.push(`<polygon points="${n1(ax + 1.3 * s)},${n1(ay - 0.34 * s)} ${n1(ax + 2.0 * s)},${n1(ay)} ${n1(ax + 1.3 * s)},${n1(ay + 0.34 * s)}" fill="#2f6fdf"/>`);
+        top = Math.min(top, ay - 0.34 * s);
+      }
+      if (n >= 4) { // Riss im Sockel
+        const cx0 = x + 1.2 * s;
+        out.push(`<polyline points="${n1(cx0 + 0.2 * s)},${n1(gy)} ${n1(cx0 - 0.05 * s)},${n1(gy + 0.2 * s)} ${n1(cx0 + 0.15 * s)},${n1(gy + 0.38 * s)} ${n1(cx0)},${n1(groundY)}" fill="none" stroke="#1d2420" stroke-width="0.8"/>`);
+      }
+      if (n >= 5) { // Tornado
+        const tx = hx + 0.6 * s;
+        out.push(`<polygon points="${n1(tx - 0.12 * s)},${n1(gy)} ${n1(tx + 0.12 * s)},${n1(gy)} ${n1(tx + 1.25 * s)},${n1(gy - 3.5 * s)} ${n1(tx - 1.0 * s)},${n1(gy - 3.5 * s)}" fill="#8d969c" fill-opacity="0.6"/>`);
+      }
+      if (n >= 6) { // Kaiju auf dem Hügel
+        const kx = hx, ky = gy - 1.2 * s;
+        out.push(rect(kx - 0.8 * s, ky - 1.4 * s, 0.6 * s, 1.4 * s, '#4f8a4b'), rect(kx + 0.2 * s, ky - 1.4 * s, 0.6 * s, 1.4 * s, '#4f8a4b'));
+        out.push(rect(kx - 0.85 * s, ky - 3.6 * s, 1.7 * s, 2.3 * s, '#4f8a4b'), rect(kx - 0.6 * s, ky - 3.3 * s, 1.2 * s, 1.8 * s, '#a9cf8f'));
+        out.push(rect(kx - 0.6 * s, ky - 4.5 * s, 1.2 * s, 0.95 * s, '#4f8a4b'), rect(kx - 0.35 * s, ky - 4.2 * s, 0.22 * s, 0.22 * s, '#ffffff'), rect(kx + 0.13 * s, ky - 4.2 * s, 0.22 * s, 0.22 * s, '#ffffff'));
+        top = Math.min(top, ky - 4.5 * s);
+      }
+      if (n >= 7) { // Untertasse
+        const ux = x + w * 0.3, uy = yb - 4.2 * s;
+        out.push(`<polygon points="${n1(ux - 0.5 * s)},${n1(uy)} ${n1(ux + 0.5 * s)},${n1(uy)} ${n1(ux + 1.3 * s)},${n1(yb)} ${n1(ux - 1.3 * s)},${n1(yb)}" fill="#b6f5c8" fill-opacity="0.35"/>`);
+        out.push(`<ellipse cx="${n1(ux)}" cy="${n1(uy - 0.3 * s)}" rx="${n1(0.6 * s)}" ry="${n1(0.5 * s)}" fill="#9fe0c0"/>`);
+        out.push(`<ellipse cx="${n1(ux)}" cy="${n1(uy)}" rx="${n1(1.5 * s)}" ry="${n1(0.33 * s)}" fill="#c3c9ce"/>`);
+        top = Math.min(top, uy - 0.8 * s);
+      }
       break;
     }
     default:
