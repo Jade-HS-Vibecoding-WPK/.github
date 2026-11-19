@@ -22,7 +22,7 @@
     "Map2Model": { "house": "sperrholz" },
     "Workflow_App": { "house": "kacheln" },
     "Detailpruefer": { "house": "holzrahmen" },
-    "Standortanalyse-": { "house": "kartenplatte" },
+    "locus": { "house": "kartenplatte" },
     "ImmoCheck": { "house": "rendite" },
     "urban-analyst": { "house": "layerturm", "startGeschoss": 3 },
     "MaterialMatch": { "house": "materialmatch", "startGeschoss": 3 },

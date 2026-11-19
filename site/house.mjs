@@ -88,7 +88,7 @@ export const STYLES = {
   sperrholz: { roof: 'flat' },              // Map2Model: Sperrholzmodell auf Kartenplatte
   kacheln: { roof: 'flat' },                // Workflow_App: Gantt-Balken und rote Jetzt-Linie
   holzrahmen: {},                           // Detailpruefer: Holzrahmenbau mit Schnitt und Prüfmarken
-  kartenplatte: { roof: 'flat' },           // Standortanalyse: Weißmodell auf bemalter Kartenplatte
+  kartenplatte: { roof: 'flat' },           // locus (Standortanalyse): Weißmodell auf bemalter Kartenplatte
   rendite: { roof: 'flat' },                // ImmoCheck: Stadthaus wie ein steigendes Balkendiagramm
   layerturm: { roof: 'flat', width: 10, depth: 10 },   // urban-analyst: dunkler Turm, je Geschoss ein Analyse-Layer
   materialmatch: { roof: 'flat', width: 10, depth: 9 }, // MaterialMatch: Bento-Fassade aus Baustoffen, Swipe-Karten

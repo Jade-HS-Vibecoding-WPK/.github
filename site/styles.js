@@ -707,7 +707,7 @@ function holzrahmen(g, p, hs) {
   return {};
 }
 
-// ---------- 18 Standortanalyse: Weißmodell auf einer Platte, bemalt wie die Karte (ein Layer mehr pro Verdopplung) ----------
+// ---------- 18 locus (Standortanalyse): Weißmodell auf einer Platte, bemalt wie die Karte (ein Layer mehr pro Verdopplung) ----------
 function kartenplatte(g, p, hs) {
   const { W, D, H, fz } = dims(hs);
   const PW = W + 5, PD = D + 3.4, pz = -0.2;
