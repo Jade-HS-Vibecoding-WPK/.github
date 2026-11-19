@@ -558,6 +558,27 @@ body.inside .title { display: none !important; }
 .hud-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .hud-actions .btn { padding: 7px 12px; }
 
+.fly-hud {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 14px;
+  font-size: 13px;
+}
+.fly-hud b { font: 700 18px/1 var(--sign); }
+.fly-hud .fly-keys { color: var(--muted); }
+.fly-hud .btn { padding: 6px 10px; }
+.fly-hud .btn .key { margin: 0 0 0 4px; }
+/* zwischen Titel und Verzeichnis ist erst ab 1280 px Platz für die Tastenhilfe */
+@media (max-width: 1279px) { .fly-hud .fly-keys { display: none; } }
+
 .fade { position: fixed; inset: 0; z-index: 9; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.35s; }
 .fade.on { opacity: 1; }
 

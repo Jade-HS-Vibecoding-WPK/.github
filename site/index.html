@@ -39,6 +39,7 @@
         <li>Ziehen mit der Maus: umschauen</li>
         <li>Klick auf ein Haus: Projekt öffnen</li>
         <li>Doppelklick oder <span class="key">E</span>: ins Haus gehen · <span class="key">Esc</span> wieder raus</li>
+        <li><span class="key">F</span> Freiflug, auch von oben: <span class="key">E</span><span class="key">Q</span> hoch/runter · <span class="key">F</span> landen</li>
       </ul>
       <ul class="controls only-coarse">
         <li>Wischen hoch/runter: gehen</li>
@@ -92,6 +93,12 @@
       <a class="btn" id="hud-open" target="_blank" rel="noopener">In neuem Tab ↗</a>
       <button type="button" class="btn primary" id="hud-exit">Hinausgehen</button>
     </div>
+  </div>
+
+  <div class="panel fly-hud" id="fly-hud" hidden>
+    <b>Freiflug</b>
+    <span class="fly-keys"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> fliegen · <span class="key">E</span><span class="key">Q</span> hoch/runter · <span class="key">⇧</span> schneller</span>
+    <button type="button" class="btn" id="fly-land">Landen <span class="key">F</span></button>
   </div>
 
   <div class="fade" id="fade" aria-hidden="true"></div>

@@ -1259,8 +1259,9 @@ function updateEnvironment(dt) {
   sky.material.uniforms.stars.value = e.stars;
   scene.background.copy(e.horizon);
   scene.fog.color.copy(e.horizon);
-  scene.fog.near = e.fogNear;
-  scene.fog.far = e.fogFar;
+  const lift = inside >= 0 ? 0 : Math.max(0, camY - EYE);
+  scene.fog.near = e.fogNear + lift * 1.5;
+  scene.fog.far = Math.min(300, e.fogFar + lift * 2.5);
   hemi.color.copy(e.hemiSky);
   hemi.groundColor.copy(e.hemiGround);
   hemi.intensity = e.hemiI;
@@ -1596,6 +1597,7 @@ async function enterHouse(i) {
   if (busy || inside >= 0 || !renderer || !room) return;
   const H = houses[i];
   if (!H || H.p.house.floors === 0) return;
+  if (flying) setFlying(false, { land: false });
   busy = true;
   closeCard();
   setHover(-1);
@@ -1673,6 +1675,29 @@ let velF = 0, velS = 0, wheelVel = 0, walked = 0;
 const keys = new Set();
 let tween = null;
 let bounds = { minZ: -100, maxZ: 16 };
+
+// Freiflug: frei durch die Luft, auch senkrecht nach unten schauen
+let flying = false, velY = 0;
+const FLY_TOP = 60, FLY_SIDE = 70, FLY_KEYS = new Set(['KeyE', 'KeyQ', 'Space']);
+
+function setFlying(on, { land = true } = {}) {
+  if (on === flying) return;
+  if (on && (busy || inside >= 0 || tween?.lock || !renderer)) return;
+  flying = on;
+  document.body.classList.toggle('flying', on);
+  const hud = $('#fly-hud');
+  if (hud) hud.hidden = !on;
+  velF = velS = wheelVel = velY = 0;
+  for (const k of FLY_KEYS) keys.delete(k);
+  if (on) {
+    // Fokus vom Knopf nehmen, damit Leertaste und E/Q beim Fliegen ankommen
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    flyTo({ x: pos.x, z: pos.z, y: Math.max(camY, 9), yaw, pitch: Math.min(pitch, -0.45) }, 0.9);
+  } else if (land) {
+    // zurück auf den Gehweg, in Blickrichtung
+    flyTo({ x: clamp(pos.x, -(CURB - 0.5), CURB - 0.5), z: clamp(pos.z, bounds.minZ, bounds.maxZ), y: EYE, yaw, pitch: clamp(pitch, -0.2, 0.3) }, 1.2, true);
+  }
+}
 
 function poseFor(i) {
   const H = houses[i];
@@ -1792,7 +1817,11 @@ function select(i, { fly = true } = {}) {
   selected = i;
   renderCard(houses[i].p, i);
   document.querySelectorAll('#dir-list li, .dot').forEach((n) => n.classList.toggle('selected', +n.dataset.i === i));
-  if (fly && renderer) flyTo(poseFor(i));
+  if (fly && renderer) {
+    const fromAir = flying;
+    if (fromAir) setFlying(false, { land: false });
+    flyTo(poseFor(i), fromAir ? 1.8 : 1.4, fromAir);
+  }
   history.replaceState(null, '', `#${encodeURIComponent(houses[i].p.name)}`);
 }
 
@@ -1970,7 +1999,14 @@ function setupInput() {
   const moveKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
-    if (e.key === 'Escape') { if (inside >= 0) exitHouse(); else { closeCard(); closeDirectoryOnMobile(); } return; }
+    if (e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { setFlying(!flying); return; }
+    if (e.key === 'Escape') { if (inside >= 0) exitHouse(); else if (flying) setFlying(false); else { closeCard(); closeDirectoryOnMobile(); } return; }
+    if (flying && FLY_KEYS.has(e.code)) {
+      keys.add(e.code);
+      if (tween && !tween.lock) tween = null;
+      e.preventDefault();
+      return;
+    }
     if ((e.code === 'KeyE' || e.key === 'Enter') && inside < 0 && selected >= 0 && e.target === document.body) { enterHouse(selected); return; }
     if (moveKeys.has(e.code) || e.code.startsWith('Shift')) {
       keys.add(e.code);
@@ -1997,7 +2033,7 @@ function setupInput() {
       tween = null;
       if (drag.type === 'mouse') {
         yaw += dx * 0.0035;
-        pitch = clamp(pitch + dy * 0.0028, -0.7, 0.6);
+        pitch = flying ? clamp(pitch + dy * 0.0028, -1.52, 1.2) : clamp(pitch + dy * 0.0028, -0.7, 0.6);
       } else {
         yaw += dx * 0.005;
         pos.x += -Math.sin(yaw) * dy * 0.06;
@@ -2025,7 +2061,7 @@ function setupInput() {
     }
     if (click && e.type === 'pointerup') {
       const i = pick(e.clientX, e.clientY);
-      if (i >= 0) select(i);
+      if (i >= 0) select(i, { fly: !flying });
       else if (isNarrow()) closeCard();
     }
   };
@@ -2039,6 +2075,7 @@ function setupInput() {
   });
   $('#hud-exit').addEventListener('click', exitHouse);
   $('#hud-front').addEventListener('click', frontOfScreen);
+  $('#fly-land')?.addEventListener('click', () => setFlying(false)); // ? = ältere index.html aus dem Cache
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     if (tween?.lock) return;
@@ -2110,17 +2147,37 @@ function update(dt) {
     const run = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 2 : 1;
     yaw += turn * 1.9 * dt;
     const k = Math.min(1, dt * 7);
-    velF += (fIn * SPEED * run - velF) * k;
-    velS += (sIn * SPEED * 0.8 * run - velS) * k;
-    wheelVel *= Math.pow(0.12, dt);
-    const f = velF + wheelVel;
-    pos.x += (-Math.sin(yaw) * f + Math.cos(yaw) * velS) * dt;
-    pos.z += (-Math.cos(yaw) * f - Math.sin(yaw) * velS) * dt;
-    walked += Math.hypot(f, velS) * dt;
-    if (Math.abs(f) + Math.abs(velS) > 0.2) camY += (EYE - camY) * Math.min(1, dt * 2.5);
+    if (flying) {
+      // WASD waagerecht (auch beim Blick nach unten), E/Q Höhe, Mausrad in Blickrichtung; je höher, desto schneller
+      const up = (keys.has('KeyE') || keys.has('Space') ? 1 : 0) - (keys.has('KeyQ') ? 1 : 0);
+      const hk = 1 + Math.max(0, camY - EYE) / 12;
+      const v = SPEED * (run > 1 ? 3 : 1) * hk;
+      velF += (fIn * v - velF) * k;
+      velS += (sIn * v * 0.8 - velS) * k;
+      velY += (up * v * 0.7 - velY) * k;
+      wheelVel *= Math.pow(0.12, dt);
+      const z = wheelVel * hk, f = velF + Math.cos(pitch) * z;
+      pos.x += (-Math.sin(yaw) * f + Math.cos(yaw) * velS) * dt;
+      pos.z += (-Math.cos(yaw) * f - Math.sin(yaw) * velS) * dt;
+      camY += (Math.sin(pitch) * z + velY) * dt;
+    } else {
+      velF += (fIn * SPEED * run - velF) * k;
+      velS += (sIn * SPEED * 0.8 * run - velS) * k;
+      wheelVel *= Math.pow(0.12, dt);
+      const f = velF + wheelVel;
+      pos.x += (-Math.sin(yaw) * f + Math.cos(yaw) * velS) * dt;
+      pos.z += (-Math.cos(yaw) * f - Math.sin(yaw) * velS) * dt;
+      walked += Math.hypot(f, velS) * dt;
+      if (Math.abs(f) + Math.abs(velS) > 0.2) camY += (EYE - camY) * Math.min(1, dt * 2.5);
+    }
   }
-  if (!tween?.lock) {
-    if (inside >= 0) {
+  // Flüge starten und enden an erlaubten Punkten, dazwischen nicht begrenzen
+  if (!tween) {
+    if (flying) {
+      pos.x = clamp(pos.x, -FLY_SIDE, FLY_SIDE);
+      pos.z = clamp(pos.z, bounds.minZ - 30, bounds.maxZ + 30);
+      camY = clamp(camY, 0.4, FLY_TOP);
+    } else if (inside >= 0) {
       pos.x = clamp(pos.x, -(ROOM.w / 2 - 0.6), ROOM.w / 2 - 0.6);
       pos.z = clamp(pos.z, SCREEN_Z + 1.2, IZ + ROOM.d / 2 - 0.6);
     } else {
@@ -2128,7 +2185,7 @@ function update(dt) {
       pos.z = clamp(pos.z, bounds.minZ, bounds.maxZ);
     }
   }
-  const bob = reduceMotion || tween ? 0 : Math.sin(walked * 1.9) * 0.035;
+  const bob = reduceMotion || tween || flying ? 0 : Math.sin(walked * 1.9) * 0.035;
   camera.position.set(pos.x, camY + bob, pos.z);
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
