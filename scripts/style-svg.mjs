@@ -19,6 +19,7 @@ export function styleSideExtra(h) {
   if (h.style === 'materialmatch') return 2.8;
   if (h.style === 'terra') return 3.4;
   if (h.style === 'layerturm') return 0.6;
+  if (h.style === 'kiosk') return 1.2;
   return 0;
 }
 
@@ -380,6 +381,30 @@ export function styleSvg(p, x, groundY, s, kit) {
         out.push(`<ellipse cx="${n1(ux)}" cy="${n1(uy)}" rx="${n1(1.5 * s)}" ry="${n1(0.33 * s)}" fill="#c3c9ce"/>`);
         top = Math.min(top, uy - 0.8 * s);
       }
+      break;
+    }
+    case 'kiosk': {
+      const HW = 2.75, yk = groundY - HW * s;
+      out.push(rect(x, yk, w, HW * s, '#f1e8d4', ' class="ink"'));
+      out.push(rect(x, groundY - 0.9 * s, w, 0.9 * s, '#2f5d4a'));
+      const ow = W - 1.8, ol = 0.9 + 0.25; // im Banner liegt die Gartenseite rechts
+      out.push(rect(x + ol * s, groundY - 2.25 * s, ow * s, 1.25 * s, '#2a2622'));
+      const colors = ['#c8382f', '#e6b33a', '#3b7fbf', '#5e9a4f'];
+      const filled = Math.min(24, (h.level ?? 1) * 4);
+      for (let k = 0; k < filled; k++) {
+        const sh = Math.floor(k / 8), i = k % 8;
+        out.push(rect(x + (ol + 0.12 + i * ((ow - 0.44) / 7)) * s, groundY - (1.12 + sh * 0.38 + 0.26) * s, 0.22 * s, 0.24 * s, colors[(sh * 3 + i) % 4]));
+      }
+      out.push(rect(x + (ol - 0.1) * s, groundY - 1.04 * s, (ow + 0.2) * s, 0.08 * s, '#d9c7a3'));
+      for (let i = 0; i < 8; i++) {
+        out.push(rect(x + (ol - 0.1) * s + (i * (ow + 0.2) * s) / 8, groundY - 2.55 * s, ((ow + 0.2) * s) / 8, 0.38 * s, i % 2 ? '#f5f1e6' : '#c8382f'));
+      }
+      out.push(rect(x - 0.15 * s, yk - 0.2 * s, w + 0.3 * s, 0.2 * s, '#2f5d4a'));
+      out.push(rect(x + 0.45 * s, yk - 0.82 * s, w - 0.9 * s, 0.62 * s, '#c8382f'));
+      out.push(`<text x="${n1(x + w / 2)}" y="${n1(yk - 0.33 * s)}" font-size="${n1(0.4 * s)}" font-weight="800" style="fill:#ffffff" text-anchor="middle">KIOSK</text>`);
+      top = yk - 0.82 * s;
+      const bx = x + w + 0.7 * s;
+      out.push(`<polygon points="${n1(bx - 0.3 * s)},${n1(groundY)} ${n1(bx)},${n1(groundY - 0.9 * s)} ${n1(bx + 0.3 * s)},${n1(groundY)}" fill="#2d3a33" stroke="#6b4f3a" stroke-width="0.8"/>`);
       break;
     }
     default:

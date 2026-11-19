@@ -25,6 +25,7 @@
     "Standortanalyse-": { "house": "kartenplatte" },
     "ImmoCheck": { "house": "rendite" },
     "urban-analyst": { "house": "layerturm", "startGeschoss": 3 },
-    "MaterialMatch": { "house": "materialmatch", "startGeschoss": 3 }
+    "MaterialMatch": { "house": "materialmatch", "startGeschoss": 3 },
+    "niedersachsen-cache": { "house": "kiosk" }
   }
 }

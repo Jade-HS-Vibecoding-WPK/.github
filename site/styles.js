@@ -1159,9 +1159,95 @@ function terra(g, p, hs) {
   return { hedges: false };
 }
 
+// ---------- niedersachsen-cache: kleiner Kiosk, Kartenpakete zum Mitnehmen statt Overpass-Warteschlange ----------
+function kiosk(g, p, hs) {
+  const { W, D, fz } = dims(hs);
+  const gs = K.gs, HW = 2.75;
+  const cream = K.mat('#f1e8d4', { roughness: 0.85 }), green = K.mat('#2f5d4a', { roughness: 0.7 });
+  body(g, W, HW, D, cream);
+  g.add(K.box(W + 0.04, 0.9, D + 0.04, green, 0, 0.45, 0));
+  for (const sx of [-1, 1]) g.add(K.box(0.12, HW, 0.12, green, sx * (W / 2 - 0.02), HW / 2, fz - 0.02));
+  // gepflasterter Vorplatz
+  g.add(K.box(W + 1.6, 0.04, 2.2, K.mat('#b9b4aa', { roughness: 1 }), 0, 0.02, fz + 1.1, { cast: false }));
+  // Verkaufsfenster mit Regal: je Verdopplung der Commits vier Kartenpakete mehr
+  // (zur Gartenseite gerückt, damit das Ausleger-Schild an der anderen Ecke frei hängt)
+  const ow = W - 1.8, ox = gs * 0.25, oy = 1.0, oh = 1.25;
+  g.add(K.box(ow, oh, 0.04, K.active ? K.mat('#5a4630', { emissive: '#f2c66b', emissiveIntensity: 0.35 }) : K.mat('#2a2622'), ox, oy + oh / 2, fz + 0.02, { cast: false }));
+  g.add(K.box(ow + 0.16, 0.08, 0.06, green, ox, oy + oh + 0.04, fz + 0.04));
+  const boards = [], packs = [[], [], [], []];
+  const colors = ['#c8382f', '#e6b33a', '#3b7fbf', '#5e9a4f'];
+  const filled = Math.min(24, (hs.level ?? 1) * 4);
+  for (let s = 0; s < 3; s++) {
+    const y = oy + 0.12 + s * 0.38;
+    boards.push(K.boxGeo(ow - 0.1, 0.03, 0.14, ox, y, fz + 0.1));
+    for (let i = 0; i < 8; i++) {
+      if (s * 8 + i >= filled) continue;
+      const x = ox - ow / 2 + 0.22 + i * ((ow - 0.44) / 7);
+      packs[(s * 3 + i) % 4].push(K.boxGeo(0.2, 0.24 + ((i * 7 + s) % 3) * 0.03, 0.1, x, y + 0.14, fz + 0.1));
+    }
+  }
+  add(g, merged(boards, K.mat('#d9c7a3'), { cast: false }));
+  packs.forEach((geos, k) => add(g, merged(geos, K.mat(colors[k], { roughness: 0.6 }), { cast: false })));
+  // Tresen
+  g.add(K.box(ow + 0.2, 0.08, 0.5, K.mat('#d9c7a3', { roughness: 0.6 }), ox, oy, fz + 0.25));
+  // gestreifte Markise über dem Fenster
+  const stripes = tex('kiosk-awning', 256, 64, (c) => {
+    for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f5f1e6' : '#c8382f'; c.fillRect(i * 32, 0, 32, 64); }
+  });
+  const awn = texMat('kiosk-awning', () => new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.8, side: THREE.DoubleSide }));
+  const aw = ow + 0.2, al = 1.0, drop = 0.38;
+  const slope = new THREE.Mesh(new THREE.PlaneGeometry(aw, Math.hypot(al, drop)), awn);
+  slope.rotation.x = -Math.PI / 2 + Math.atan2(drop, al);
+  slope.position.set(ox, 2.55 - drop / 2, fz + al / 2);
+  slope.castShadow = true;
+  g.add(slope);
+  g.add(at(new THREE.Mesh(new THREE.PlaneGeometry(aw, 0.2), awn), ox, 2.55 - drop - 0.1, fz + al));
+  // Dach und Leuchtschild
+  g.add(K.box(W + 0.3, 0.2, D + 0.3, green, 0, HW + 0.1, 0));
+  g.add(K.box(W - 0.9, 0.62, 0.2, K.mat('#c8382f'), 0, HW + 0.52, fz - 0.15));
+  const sign = picture('kiosk-sign', W - 1.0, 0.54, (c, cv) => {
+    c.fillStyle = '#c8382f'; c.fillRect(0, 0, cv.width, cv.height);
+    c.fillStyle = '#ffffff'; c.textAlign = 'center';
+    c.font = `800 ${Math.round(cv.height * 0.56)}px system-ui, sans-serif`; c.fillText('KIOSK', cv.width / 2, cv.height * 0.6);
+    c.font = `600 ${Math.round(cv.height * 0.17)}px system-ui, sans-serif`; c.fillText('Karten frisch aus Niedersachsen', cv.width / 2, cv.height * 0.88);
+  }, 160);
+  sign.material.emissive = new THREE.Color('#ffffff');
+  sign.material.emissiveMap = sign.material.map;
+  sign.material.emissiveIntensity = 0.25;
+  g.add(at(sign, 0, HW + 0.52, fz - 0.04));
+  // Seitentür zum Garten und Hausnummer
+  g.add(K.box(0.06, 2.1, 0.95, green, gs * (W / 2 + 0.02), 1.05, -D / 2 + 0.9));
+  g.add(K.box(0.05, 0.06, 0.06, K.mat('#c9c2b0', { metalness: 0.6 }), gs * (W / 2 + 0.07), 1.05, -D / 2 + 0.6));
+  K.numberPlate(g, gs * (W / 2 - 0.4), 2.45, fz + 0.03);
+  // Kundenstopper: keine Warteschlange
+  const board = picture('kiosk-board', 0.62, 0.86, (c, cv) => {
+    const w = cv.width, h = cv.height;
+    c.fillStyle = '#6b4f3a'; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#2d3a33'; c.fillRect(w * 0.07, w * 0.07, w * 0.86, h - w * 0.14);
+    c.fillStyle = '#f5f1e6'; c.textAlign = 'center';
+    c.font = `600 ${Math.round(h * 0.08)}px "Segoe Print", "Comic Sans MS", cursive`;
+    ['Heute frisch:', 'OSM-Karten', 'für 10 Städte', '', 'Wartezeit:', '0 Sek.'].forEach((t, i) => c.fillText(t, w / 2, h * (0.2 + i * 0.12)));
+  }, 200);
+  const stand = new THREE.Group();
+  for (const s of [-1, 1]) {
+    const b = new THREE.Group();
+    b.add(K.mesh(new THREE.BoxGeometry(0.64, 0.88, 0.03), K.mat('#6b4f3a')));
+    const f = board.clone();
+    f.position.z = 0.02;
+    b.add(f);
+    b.position.set(0, 0.42, s * 0.12);
+    b.rotation.set(s * -0.24, s < 0 ? Math.PI : 0, 0);
+    stand.add(b);
+  }
+  stand.position.set(gs * (W / 2 + 0.7), 0, fz + 1.3);
+  stand.rotation.y = gs * 0.35;
+  g.add(stand);
+  return { hedges: false };
+}
+
 const BUILDERS = {
   hoehenmodell, karton, plankopf, schwarzplan, laserplatte, passivhaus, swiss, planpruefer,
   glas, musterfassade, treppe, sperrholz, kacheln, holzrahmen, kartenplatte, rendite,
-  layerturm, materialmatch, terra,
+  layerturm, materialmatch, terra, kiosk,
 };
 export const STYLED = new Set(Object.keys(BUILDERS));

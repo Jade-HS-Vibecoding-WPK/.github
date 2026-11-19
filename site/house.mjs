@@ -88,6 +88,7 @@ export const STYLES = {
   layerturm: { roof: 'flat', width: 10, depth: 10 },   // urban-analyst: dunkler Turm, je Geschoss ein Analyse-Layer
   materialmatch: { roof: 'flat', width: 10, depth: 9 }, // MaterialMatch: Bento-Fassade aus Baustoffen, Swipe-Karten
   terra: { roof: 'flat', width: 9, depth: 9 },         // TERRA-Sim: Arbeitsmodell auf Geländesockel mit Gefahren
+  kiosk: { roof: 'flat', width: 4.5, depth: 3.5 },     // niedersachsen-cache: kleiner Kiosk, das Regal füllt sich statt Geschossen
 };
 export const PASSIV_UPGRADES = ['Solardach', 'Holzfaserfassade', 'Wärmepumpe', 'Fassadengrün', 'Regenspeicher', 'E-Ladesäule'];
 export const EFFIZIENZ = ['G', 'F', 'E', 'D', 'C', 'B', 'A'];
@@ -146,6 +147,7 @@ export function styleLabel(hs) {
     case 'rendite': return `Stadthaus wie ein Renditechart · ${renditeSteps(n).join(' · ')} Geschosse`;
     case 'layerturm': return `Layer-Turm · ${UA_LAYERS.slice(0, n).map((l) => l[0]).join(', ')}`;
     case 'materialmatch': return `Bento-Haus · ${bentoRows(n, hs.seed).flat().length - 1} Baustoff-Kacheln · Match ${matchScore(n)} %`;
+    case 'kiosk': return `Kiosk · ${Math.min(24, (hs.level ?? 1) * 4)} Kartenpakete im Regal · frisch jede Woche`;
     case 'terra': return `Arbeitsmodell auf Geländesockel · ${terraCount(hs)} von ${TERRA_GEFAHREN.length} Gefahren: ${TERRA_GEFAHREN.slice(0, terraCount(hs)).join(', ')}`;
   }
   return null;
@@ -277,6 +279,11 @@ export function houseFor(name, commits, empty, language, style, opts = {}) {
       // wächst nicht in die Höhe, sondern wird mit jeder Verdopplung nachhaltiger
       house.floors = 2;
       house.level = Math.min(PASSIV_UPGRADES.length, floorsFor(commits) - 1);
+    }
+    if (style === 'kiosk' && !empty) {
+      // bleibt klein: ein Geschoss, mit jeder Verdopplung kommen vier Kartenpakete ins Regal
+      house.floors = 1;
+      house.level = Math.min(6, floorsFor(commits));
     }
   }
   if (style === 'nurdach') {
