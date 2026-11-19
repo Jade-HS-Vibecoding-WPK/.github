@@ -159,7 +159,7 @@ async function describe(repo) {
     team,
     image: override.image ?? readmeImage(md, repo, readme?.path ?? 'README.md'),
     house: {
-      ...houseFor(repo.name, commits, empty, repo.language, override.house, { startGeschoss: override.startGeschoss }),
+      ...houseFor(repo.name, commits, empty, repo.language, override.house, { startGeschoss: override.startGeschoss, vollverglast: override.vollverglast }),
       ...(override.setzlinge ? { saplings: true } : {}),
     },
   };

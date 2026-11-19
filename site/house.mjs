@@ -269,6 +269,7 @@ export function nurdachCells() {
 }
 
 // opts.startGeschoss: Nachzügler starten höher (3 = das erste Commit bringt schon drei Geschosse)
+// opts.vollverglast: Nurdachhaus mit ganz verglaster Giebelfront, unabhängig von den Commits
 export function houseFor(name, commits, empty, language, style, opts = {}) {
   const r = rng(hash(name.toLowerCase()));
   const pick = (arr) => arr[Math.floor(r() * arr.length)];
@@ -309,7 +310,7 @@ export function houseFor(name, commits, empty, language, style, opts = {}) {
       roof: 'nurdach',
       roofColor: '#3f4b56', // dunkles Schieferdach, hebt das Dreieck ab
       floors: empty ? 0 : 1,
-      windows: empty ? 0 : Math.min(nurdachWindowsFor(commits), nurdachCells().length),
+      windows: empty ? 0 : opts.vollverglast ? nurdachCells().length : Math.min(nurdachWindowsFor(commits), nurdachCells().length),
     });
   }
   return house;

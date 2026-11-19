@@ -1842,7 +1842,9 @@ function renderCard(p, i) {
   const facts = [
     ['Commits', p.commits == null ? '–' : String(p.commits)],
     p.house.style === 'nurdach' && p.house.floors > 0
-      ? ['Bauweise', `Nurdachhaus · ${p.house.windows} ${p.house.windows === 1 ? 'Fensterabteil' : 'Fensterabteile'}`]
+      ? ['Bauweise', p.house.windows >= nurdachCells().length
+        ? 'Nurdachhaus · Giebelfront ganz verglast'
+        : `Nurdachhaus · ${p.house.windows} ${p.house.windows === 1 ? 'Fensterabteil' : 'Fensterabteile'}`]
       : p.house.style === 'voxel' && p.house.floors > 0
         ? ['Bauweise', 'Block-Stil · Gründach aus dem Erdblock des Teams']
         : p.house.floors > 0 && styleLabel(p.house)
