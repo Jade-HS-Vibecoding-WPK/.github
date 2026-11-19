@@ -3,6 +3,7 @@
 // Banner nicht bei jedem Lauf der Action neu committet wird.
 import {
   FLOOR_H, rng, EFFIZIENZ, SWATCHES, mapLayerCount, renditeSteps, UA_LAYERS, MM_BAUSTOFFE, MM_FARBEN, bentoRows, terraCount,
+  werkbankTextur,
 } from '../site/house.mjs';
 
 const n1 = (v) => +v.toFixed(1);
@@ -405,6 +406,22 @@ export function styleSvg(p, x, groundY, s, kit) {
       top = yk - 0.82 * s;
       const bx = x + w + 0.7 * s;
       out.push(`<polygon points="${n1(bx - 0.3 * s)},${n1(groundY)} ${n1(bx)},${n1(groundY - 0.9 * s)} ${n1(bx + 0.3 * s)},${n1(groundY)}" fill="#2d3a33" stroke="#6b4f3a" stroke-width="0.8"/>`);
+      break;
+    }
+    case 'werkbank': {
+      // Yaras Pixelblock von vorn: das 16×16-Raster der Seite, gleiche Farben einer Zeile zusammengefasst
+      const S = Math.min(W, H), px = (S * s) / 16, bx = x + (w - S * s) / 2, by = groundY - S * s;
+      const g = werkbankTextur('seite', { rauschen: false });
+      for (let yy = 0; yy < 16; yy++) {
+        for (let xx = 0; xx < 16;) {
+          const f = g[yy][xx];
+          let e = xx + 1;
+          while (e < 16 && g[yy][e] === f) e++;
+          if (f) out.push(rect(bx + xx * px, by + yy * px, (e - xx) * px + 0.4, px + 0.4, f));
+          xx = e;
+        }
+      }
+      top = by;
       break;
     }
     default:

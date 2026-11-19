@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {
   FLOOR_H, rng, hash, EFFIZIENZ, PASSIV_UPGRADES, SWATCHES, mapLayerCount, renditeSteps,
-  UA_LAYERS, MM_BAUSTOFFE, MM_FARBEN, matchScore, bentoRows, terraCount,
+  UA_LAYERS, MM_BAUSTOFFE, MM_FARBEN, matchScore, bentoRows, terraCount, werkbankTextur,
 } from './house.mjs';
 
 let K; // Werkzeugkasten aus street.js: mat, mesh, box, boxGeo, meterUVs, facadeMaterial, addDoor, …
@@ -1245,9 +1245,33 @@ function kiosk(g, p, hs) {
   return { hedges: false, sign: false }; // Leuchtschild „KIOSK“ und Hausnummer reichen, das Ausleger-Schild wäre größer als der Kiosk
 }
 
+// ---------- Jade-Werkbank: Yaras Pixelblock in Riesengröße ----------
+function werkbank(g, p, hs) {
+  const { W, D, H, fz } = dims(hs);
+  const S = Math.min(W, D, H);
+  const pixel = (teil) => {
+    const t = tex(`werkbank-${teil}`, 16, 16, (c) => {
+      werkbankTextur(teil).forEach((zeile, y) => zeile.forEach((f, x) => {
+        if (!f) return;
+        c.fillStyle = f;
+        c.fillRect(x, y, 1, 1);
+      }));
+    });
+    t.magFilter = THREE.NearestFilter; // scharfe Pixel wie in Yaras Design
+    return t;
+  };
+  const seite = texMat('werkbank-seite', () => new THREE.MeshStandardMaterial({ map: pixel('seite'), roughness: 0.9 }));
+  const oben = texMat('werkbank-oben', () => new THREE.MeshStandardMaterial({ map: pixel('oben'), roughness: 0.85 }));
+  const block = K.mesh(new THREE.BoxGeometry(S, S, S), [seite, seite, oben, seite, seite, seite]);
+  block.position.set(0, S / 2, fz - S / 2);
+  g.add(block);
+  K.numberPlate(g, K.gs * (S / 2 - 1.0), 2.4, fz + 0.03);
+  return { hedges: false };
+}
+
 const BUILDERS = {
   hoehenmodell, karton, plankopf, schwarzplan, laserplatte, passivhaus, swiss, planpruefer,
   glas, musterfassade, treppe, sperrholz, kacheln, holzrahmen, kartenplatte, rendite,
-  layerturm, materialmatch, terra, kiosk,
+  layerturm, materialmatch, terra, kiosk, werkbank,
 };
 export const STYLED = new Set(Object.keys(BUILDERS));

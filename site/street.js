@@ -1080,10 +1080,15 @@ function buildTrees(endZ, turnZ) {
     const side = k % 2 === 0 ? 1 : -1;
     spots.push([side * (STREET_HALF + 0.95), z, 0.95 + r() * 0.25]);
   }
-  // Bäume in den Gärten und dahinter
+  // Bäume in den Gärten und dahinter, aber nicht in Häusern mit großer Grundfläche (Werkbank-Block)
+  const imHaus = ([x, z]) => houses.some((H) => Math.sign(x) === H.side && Math.abs(z - H.z) < H.p.house.width / 2 + 1.8
+    && Math.abs(x) < SETBACK + H.p.house.depth + 1.8);
   for (let z = 20; z > turnZ - 40; z -= 2.2) {
     for (const s of [-1, 1]) {
-      if (r() < 0.55) spots.push([s * (SETBACK + 13 + r() * 22), z + r() * 2, 0.9 + r() * 0.9]);
+      if (r() < 0.55) {
+        const spot = [s * (SETBACK + 13 + r() * 22), z + r() * 2, 0.9 + r() * 0.9];
+        if (!imHaus(spot)) spots.push(spot);
+      }
       if (r() < 0.25) spots.push([s * (SETBACK + 36 + r() * 60), z + r() * 2, 1.1 + r() * 1.2]);
     }
   }

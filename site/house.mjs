@@ -94,7 +94,73 @@ export const STYLES = {
   materialmatch: { roof: 'flat', width: 10, depth: 9 }, // MaterialMatch: Bento-Fassade aus Baustoffen, Swipe-Karten
   terra: { roof: 'flat', width: 9, depth: 9 },         // TERRA-Sim: Arbeitsmodell auf Geländesockel mit Gefahren
   kiosk: { roof: 'flat', width: 4.5, depth: 3.5 },     // niedersachsen-cache: kleiner Kiosk, das Regal füllt sich statt Geschossen
+  werkbank: { roof: 'flat', width: 15, depth: 15 },    // Jade-Werkbank: Yaras Pixelblock, so groß wie möglich
 };
+// ---------- Jade-Werkbank: Yaras Pixelblock ----------
+// Texturen aus Yaras Werkbank-Design (Jade-Werkbank/pixel.js von Yara Hirsekorn, Freckle02),
+// hier ohne DOM, damit sie im Browser (3D) und im Banner (Node) gleich aussehen.
+export const WERKBANK_BLOCK = 15; // Kantenlänge in m: so groß, wie das Grundstück am Straßenende hergibt
+
+function pxZufall(seed) {
+  let s = [...seed].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0 || 1;
+  return () => {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5; s >>>= 0;
+    return s / 4294967296;
+  };
+}
+function pxToenen(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const k = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${k(n >> 16)},${k((n >> 8) & 255)},${k(n & 255)})`;
+}
+function pxMalen(fn) {
+  const g = Array.from({ length: 16 }, () => Array(16).fill(null));
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) g[y][x] = fn(x, y) ?? null;
+  return g;
+}
+function pxRauschen(g, seed, staerke) {
+  const r = pxZufall(seed);
+  return g.map((z) => z.map((f) => (f && f.startsWith('#') ? pxToenen(f, 1 + (r() - 0.5) * 2 * staerke) : f)));
+}
+
+/** 16×16-Farbraster des Werkbank-Blocks: teil = 'seite' oder 'oben'. */
+export function werkbankTextur(teil, { rauschen = true } = {}) {
+  if (teil === 'oben') {
+    const g = pxMalen((x, y) => {
+      if (x === 0 || y === 0 || x === 15 || y === 15) return '#5e3018';
+      const ecke = (x <= 2 || x >= 13) && (y <= 2 || y >= 13);
+      if (ecke) return (x === 1 || x === 14) && (y === 1 || y === 14) ? '#e2c28d' : '#c79f68';
+      if (x >= 3 && x <= 12 && y >= 3 && y <= 12) {
+        if (x % 3 === 0 || y % 3 === 0) return '#5a2c17';
+        return (x + y) % 3 === 2 ? '#c27447' : '#b6693f';
+      }
+      return '#a5593a';
+    });
+    return rauschen ? pxRauschen(g, 'wb-o', 0.07) : g;
+  }
+  const r = pxZufall('werkbank-seite');
+  const fugen = [9, 4, 11, 6];
+  const g = pxMalen((x, y) => {
+    if (y === 0) return '#c06e40';
+    if (y === 1) return '#9c512e';
+    if (y === 2) return '#4a2414';
+    if (x === 0) return '#3f2812';
+    if (x === 1) return '#6f4825';
+    if (x === 14) return '#5a3a1d';
+    if (x === 15) return '#3a2410';
+    if (y === 15) return '#5c3d1f';
+    const brett = Math.floor((y - 3) / 4), zeile = (y - 3) % 4;
+    if (zeile === 3) return '#6d4d27';
+    if (x === fugen[brett]) return '#7a5830';
+    if (zeile === 0) return '#c9a066';
+    const basis = brett % 2 ? '#b38955' : '#ad824d';
+    return r() < 0.12 ? '#9e7643' : basis;
+  });
+  return rauschen ? pxRauschen(g, 'wb-s', 0.05) : g;
+}
+
 export const PASSIV_UPGRADES = ['Solardach', 'Holzfaserfassade', 'Wärmepumpe', 'Fassadengrün', 'Regenspeicher', 'E-Ladesäule'];
 export const EFFIZIENZ = ['G', 'F', 'E', 'D', 'C', 'B', 'A'];
 export const SWATCHES = [['klinker', 'Klinker'], ['holz', 'Holz'], ['putz', 'Putz'], ['beton', 'Sichtbeton'], ['metall', 'Metall']];
@@ -153,6 +219,7 @@ export function styleLabel(hs) {
     case 'layerturm': return `Layer-Turm · ${UA_LAYERS.slice(0, n).map((l) => l[0]).join(', ')}`;
     case 'materialmatch': return `Bento-Haus · ${bentoRows(n, hs.seed).flat().length - 1} Baustoff-Kacheln · Match ${matchScore(n)} %`;
     case 'kiosk': return `Kiosk · ${Math.min(24, (hs.level ?? 1) * 4)} Kartenpakete im Regal · frisch jede Woche`;
+    case 'werkbank': return `Pixelblock aus Yaras Werkbank-Design · ${WERKBANK_BLOCK} m Kantenlänge`;
     case 'terra': return `Arbeitsmodell auf Geländesockel · ${terraCount(hs)} von ${TERRA_GEFAHREN.length} Gefahren: ${TERRA_GEFAHREN.slice(0, terraCount(hs)).join(', ')}`;
   }
   return null;
@@ -300,6 +367,10 @@ export function houseFor(name, commits, empty, language, style, opts = {}) {
       // bleibt klein: ein Geschoss, mit jeder Verdopplung kommen vier Kartenpakete ins Regal
       house.floors = 1;
       house.level = Math.min(6, floorsFor(commits));
+    }
+    if (style === 'werkbank' && !empty) {
+      // ein einziger Block, gleich in voller Größe
+      house.floors = WERKBANK_BLOCK / FLOOR_H;
     }
   }
   if (style === 'nurdach') {

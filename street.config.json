@@ -26,6 +26,7 @@
     "ImmoCheck": { "house": "rendite" },
     "urban-analyst": { "house": "layerturm", "startGeschoss": 3 },
     "MaterialMatch": { "house": "materialmatch", "startGeschoss": 3 },
-    "niedersachsen-cache": { "house": "kiosk" }
+    "niedersachsen-cache": { "house": "kiosk" },
+    "Jade-Werkbank": { "house": "werkbank" }
   }
 }
