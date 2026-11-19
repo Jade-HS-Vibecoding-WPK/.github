@@ -1259,9 +1259,11 @@ function updateEnvironment(dt) {
   sky.material.uniforms.stars.value = e.stars;
   scene.background.copy(e.horizon);
   scene.fog.color.copy(e.horizon);
+  // im Freiflug weicht der Nebel mit der Höhe zurück (höchstens bis 300 m), sonst gelten die Werte unverändert –
+  // der Vorführraum hat Nebel erst ab 400 m und darf nicht gedeckelt werden
   const lift = inside >= 0 ? 0 : Math.max(0, camY - EYE);
   scene.fog.near = e.fogNear + lift * 1.5;
-  scene.fog.far = Math.min(300, e.fogFar + lift * 2.5);
+  scene.fog.far = e.fogFar + Math.min(lift * 2.5, Math.max(0, 300 - e.fogFar));
   hemi.color.copy(e.hemiSky);
   hemi.groundColor.copy(e.hemiGround);
   hemi.intensity = e.hemiI;
