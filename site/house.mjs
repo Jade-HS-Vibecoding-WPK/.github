@@ -65,6 +65,11 @@ export function windowsFor(commits) {
   return floorsFor(commits) - 1;
 }
 
+/** Nurdachhaus: das erste Commit bringt das Abteil über der Tür, jede Verdopplung zwei weitere: 1 → 1, 2 → 3, 4 → 5, 8 → 7 … */
+export function nurdachWindowsFor(commits) {
+  return 1 + 2 * windowsFor(commits);
+}
+
 // Eigene Bauweisen, die Farben, Formen und Motive aus der Oberfläche des jeweiligen
 // Projekts aufgreifen (overrides.house in street.config.json). Gebaut in site/styles.js,
 // gezeichnet fürs README in scripts/style-svg.mjs.
@@ -183,12 +188,22 @@ export function nextSaplingChange(since, now = Date.now()) {
 }
 
 // Nurdachhaus: Das Dach reicht bis zum Boden, der Giebel zeigt zur Straße.
-// Es wächst nicht in die Höhe, sondern bekommt im Giebel ein Fensterabteil nach dem anderen.
+// Es wächst nicht in die Höhe, sondern bekommt im Giebel Fensterabteile, zwei pro Verdopplung.
 export const NURDACH = { width: 9, height: 8.6 };
-const NURDACH_COLS = [-4.5, -2.25, -0.75, 0.75, 2.25, 4.5];
-const NURDACH_ROWS = [0.4, 2.8, 5.4, NURDACH.height];
-// Reihenfolge, in der die Abteile verglast werden: [Reihe, Spalte] (Mitte unten ist die Tür)
-const NURDACH_ORDER = [[0, 1], [0, 3], [1, 2], [0, 0], [0, 4], [1, 1], [1, 3], [2, 2], [2, 1], [2, 3]];
+const NURDACH_COLS = [-4.5, -3.0, -1.85, -0.75, 0.75, 1.85, 3.0, 4.5];
+const NURDACH_ROWS = [0.4, 2.8, 4.6, 6.3, NURDACH.height];
+// Reihenfolge, in der die Abteile verglast werden: [Reihe, Spalte] (Mitte unten ist die Tür).
+// Erst das Abteil über der Tür, danach immer spiegelgleich zu zweit, damit der Giebel symmetrisch bleibt.
+const NURDACH_ORDER = [
+  [1, 3],
+  [0, 2], [0, 4],
+  [1, 2], [1, 4],
+  [0, 1], [0, 5],
+  [1, 1], [1, 5],
+  [2, 3], [3, 3],
+  [2, 2], [2, 4],
+  [0, 0], [0, 6],
+];
 
 function clipPolygon(poly, a, b) {
   // behält die Seite links der Kante a→b (Sutherland-Hodgman)
@@ -294,7 +309,7 @@ export function houseFor(name, commits, empty, language, style, opts = {}) {
       roof: 'nurdach',
       roofColor: '#3f4b56', // dunkles Schieferdach, hebt das Dreieck ab
       floors: empty ? 0 : 1,
-      windows: empty ? 0 : Math.min(windowsFor(commits), nurdachCells().length),
+      windows: empty ? 0 : Math.min(nurdachWindowsFor(commits), nurdachCells().length),
     });
   }
   return house;

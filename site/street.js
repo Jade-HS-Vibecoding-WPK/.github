@@ -574,7 +574,7 @@ function buildNurdach(g, hs, bodyMat, roofMat, r, active, plateTex) {
   }
   g.add(box(0.7, 0.3, D + 2 * over + 0.2, mat('#3d3a36', { roughness: 0.7 }), 0, Hp + t / Math.cos(ang) - 0.2, 0));
 
-  // Fensterabteile im Giebel, eins pro Verdopplung der Commits
+  // Fensterabteile im Giebel, zwei pro Verdopplung der Commits
   const frames = [], dark = [], lit = [];
   nurdachCells().slice(0, hs.windows ?? 0).forEach((cell) => {
     const glass = insetPolygon(cell, 0.17);
