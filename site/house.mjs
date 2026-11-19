@@ -94,12 +94,12 @@ export const STYLES = {
   materialmatch: { roof: 'flat', width: 10, depth: 9 }, // MaterialMatch: Bento-Fassade aus Baustoffen, Swipe-Karten
   terra: { roof: 'flat', width: 9, depth: 9 },         // TERRA-Sim: Arbeitsmodell auf Geländesockel mit Gefahren
   kiosk: { roof: 'flat', width: 4.5, depth: 3.5 },     // niedersachsen-cache: kleiner Kiosk, das Regal füllt sich statt Geschossen
-  werkbank: { roof: 'flat', width: 15, depth: 15 },    // Jade-Werkbank: Yaras Pixelblock, so groß wie möglich
+  werkbank: { roof: 'flat', width: 12, depth: 12 },    // Jade-Werkbank: Yaras Pixelblock (Kantenlänge WERKBANK_BLOCK)
 };
 // ---------- Jade-Werkbank: Yaras Pixelblock ----------
 // Texturen aus Yaras Werkbank-Design (Jade-Werkbank/pixel.js von Yara Hirsekorn, Freckle02),
 // hier ohne DOM, damit sie im Browser (3D) und im Banner (Node) gleich aussehen.
-export const WERKBANK_BLOCK = 15; // Kantenlänge in m: so groß, wie das Grundstück am Straßenende hergibt
+export const WERKBANK_BLOCK = 12; // Kantenlänge in m: groß, aber mit Platz für Yaras Schilder und Werkzeuge
 
 function pxZufall(seed) {
   let s = [...seed].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0 || 1;

@@ -955,8 +955,8 @@ function buildHouse(p, index, signTex, plateTex) {
     g.add(box(W + 1.4, 1.8, 0.06, mat('#e7dfcd'), 0, 0.9, front + YARD - 0.6));
   }
 
-  // Vorgarten: Weg und Hecken
-  g.add(box(1.5, 0.05, YARD, mat('#cfc8bb'), 0, 0.025, front + YARD / 2, { cast: false }));
+  // Vorgarten: Weg und Hecken (Stile ohne Tür schalten den Weg ab)
+  if (styled?.weg !== false) g.add(box(1.5, 0.05, YARD, mat('#cfc8bb'), 0, 0.025, front + YARD / 2, { cast: false }));
   const hedgeW = (W - 1.5) / 2 - 0.4;
   if (hedgeW > 0.6 && hs.floors > 0 && hs.style !== 'voxel' && styled?.hedges !== false) {
     const hedge = mat(r() < 0.5 ? '#7f9a63' : '#8aa56c');

@@ -421,6 +421,18 @@ export function styleSvg(p, x, groundY, s, kit) {
           xx = e;
         }
       }
+      // Yaras Schilder und Werkzeuge an der Straßenseite, vereinfacht: zwei Gruppen mit je drei Symbolen
+      const k = S * s, farben = ['#c8382f', '#3a6fd6', '#7fd14c', '#f8d63e', '#e9dfbf', '#a6abb0'];
+      [0.3, 0.6].forEach((oy, gi) => {
+        const sw = k * 0.5, sh = k * 0.07, sy = by + k * oy;
+        out.push(rect(bx + (k - sw) / 2, sy, sw, sh, '#57361a', stroke('#2a170a', 0.8)));
+        const iw = k * 0.15;
+        for (let n = 0; n < 3; n++) {
+          const ix = bx + k / 2 + (n - 1) * (iw + k * 0.03) - iw / 2, iy = sy + sh + k * 0.04;
+          out.push(rect(ix + iw / 2 - k * 0.01, iy - k * 0.025, k * 0.02, k * 0.02, '#2b2b2b'));
+          out.push(rect(ix, iy, iw, iw, farben[gi * 3 + n], stroke('#1e1a1c', 0.8)));
+        }
+      });
       top = by;
       break;
     }

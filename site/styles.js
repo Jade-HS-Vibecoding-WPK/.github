@@ -1245,11 +1245,109 @@ function kiosk(g, p, hs) {
   return { hedges: false, sign: false }; // Leuchtschild „KIOSK“ und Hausnummer reichen, das Ausleger-Schild wäre größer als der Kiosk
 }
 
-// ---------- Jade-Werkbank: Yaras Pixelblock in Riesengröße ----------
+// ---------- Jade-Werkbank: Yaras Pixelblock mit ihren Schildern und Werkzeugen ----------
+// Block, Schilder, Symbole und Gruppen kommen live aus Yaras Werkbank (Jade-Werkbank/pixel.js und projekte.js),
+// damit die Allee zeigt, was auf ihrer Seite hängt. Bis das geladen ist (oder falls es nicht klappt),
+// steht der Block mit den übernommenen Texturen aus house.mjs da.
+const YARA = 'https://jade-hs-vibecoding-wpk.github.io/Jade-Werkbank/';
+let yaraDetails = null;
+const bildLaden = (src) => new Promise((ok, fail) => {
+  const i = new Image();
+  i.onload = () => ok(i);
+  i.onerror = fail;
+  i.src = src;
+});
+
+function werkbankDetails() {
+  yaraDetails ??= (async () => {
+    const [px, pj] = await Promise.all([import(`${YARA}pixel.js`), import(`${YARA}projekte.js`)]);
+    const block = pj.BLOECKE.find((b) => b.id === 'werkbank');
+    if (!block) throw new Error('kein Werkbank-Block in projekte.js');
+    const schrift = '"Pixelify Sans", "Courier New", monospace';
+    await Promise.race([document.fonts.load(`700 48px ${schrift}`), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
+    const tx = px.texturen();
+    const [seite, oben] = await Promise.all([bildLaden(tx.werkbankSeite), bildLaden(tx.werkbankOben)]);
+    const repos = [...block.seiten.links, ...block.seiten.rechts].flatMap((gr) => gr.projekte).filter((r) => pj.PROJEKTE[r]);
+    const symbole = new Map(await Promise.all(repos.map(async (r) => [r, await bildLaden(px.symbolBild(pj.PROJEKTE[r].symbol))])));
+    const flaeche = (gruppen) => seiteZeichnen(gruppen, { seite, symbole, projekte: pj.PROJEKTE, zufall: px.zufall, schrift });
+    const bald = repos.filter((r) => pj.PROJEKTE[r].status === 'bald').length;
+    return {
+      links: flaeche(block.seiten.links),
+      rechts: flaeche(block.seiten.rechts),
+      seite, oben, schrift,
+      name: block.name,
+      info: `${block.info} · ${repos.length - bald} Werkzeuge${bald ? `, ${bald} kommt noch` : ''}`,
+    };
+  })();
+  return yaraDetails;
+}
+
+// Eine Blockseite wie auf Yaras Seite: Holzschild je Gruppe, darunter die Symbole an Nägeln (Maße aus ihrem CSS)
+function seiteZeichnen(gruppen, { seite, symbole, projekte, zufall, schrift }) {
+  const k = 1024, c = document.createElement('canvas');
+  c.width = c.height = k;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(seite, 0, 0, k, k);
+  const i = 0.172 * k, abX = 0.02 * k, abY = 0.018 * k, fs = 0.052 * k, rand = 0.008 * k;
+  const schildH = fs * 1.15 + 0.012 * k + 2 * rand;
+  const reihen = gruppen.map((gr) => {
+    const liste = gr.projekte.filter((r) => projekte[r]);
+    const pro = liste.length > 4 ? 3 : 4, zeilen = Math.ceil(liste.length / pro);
+    return { titel: gr.titel, liste, pro, h: schildH + 0.016 * k + zeilen * i * 1.08 + (zeilen - 1) * abY };
+  });
+  const gesamt = reihen.reduce((s, r) => s + r.h, 0) + (reihen.length - 1) * 0.04 * k;
+  let y = 0.2 * k + (0.73 * k - gesamt) / 2;
+  g.font = `700 ${fs}px ${schrift}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (const { titel, liste, pro, h } of reihen) {
+    const sw = g.measureText(titel).width + 0.06 * k + 2 * rand, sx = (k - sw) / 2;
+    g.fillStyle = '#2a170a'; g.fillRect(sx, y, sw, schildH);
+    g.fillStyle = '#57361a'; g.fillRect(sx + rand, y + rand, sw - 2 * rand, schildH - 2 * rand);
+    g.fillStyle = '#7a5028'; g.fillRect(sx + rand, y + rand, sw - 2 * rand, 0.007 * k);
+    const ty = y + rand + 0.008 * k + (fs * 1.15) / 2;
+    g.fillStyle = '#2a170a'; g.fillText(titel, k / 2 + 0.006 * k, ty + 0.006 * k);
+    g.fillStyle = '#f6e7c6'; g.fillText(titel, k / 2, ty);
+    let iy = y + schildH + 0.016 * k;
+    for (let z = 0; z < liste.length; z += pro) {
+      const zeile = liste.slice(z, z + pro);
+      let ix = (k - (zeile.length * i + (zeile.length - 1) * abX)) / 2;
+      for (const repo of zeile) {
+        const n = 0.022 * k, nx = ix + i / 2 - n / 2;
+        g.fillStyle = '#8d8d8d'; g.fillRect(nx, iy, n, n);
+        g.fillStyle = '#2b2b2b'; g.fillRect(nx + 0.007 * k, iy + 0.007 * k, n - 0.007 * k, n - 0.007 * k);
+        g.save();
+        g.translate(ix + i / 2, iy + i * 0.02); // schwingt am Nagel wie bei Yara (transform-origin 50% -6%)
+        g.rotate((((zufall(repo)() - 0.5) * 14) * Math.PI) / 180);
+        g.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        g.shadowOffsetX = 0.008 * k;
+        g.shadowOffsetY = 0.012 * k;
+        if (projekte[repo].status === 'bald') { g.globalAlpha = 0.45; g.filter = 'grayscale(1) brightness(0.8)'; }
+        g.drawImage(symbole.get(repo), -i / 2, i * 0.06, i, i);
+        g.restore();
+        ix += i + abX;
+      }
+      iy += i * 1.08 + abY;
+    }
+    y += h + 0.04 * k;
+  }
+  return c;
+}
+
+function pixelTex(quelle) {
+  const t = quelle instanceof HTMLCanvasElement ? new THREE.CanvasTexture(quelle) : new THREE.Texture(quelle);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter; // scharfe Pixel wie in Yaras Design
+  t.anisotropy = 8;
+  t.needsUpdate = true;
+  return t;
+}
+
 function werkbank(g, p, hs) {
   const { W, D, H, fz } = dims(hs);
   const S = Math.min(W, D, H);
-  const pixel = (teil) => {
+  const raster = (teil) => {
     const t = tex(`werkbank-${teil}`, 16, 16, (c) => {
       werkbankTextur(teil).forEach((zeile, y) => zeile.forEach((f, x) => {
         if (!f) return;
@@ -1257,16 +1355,43 @@ function werkbank(g, p, hs) {
         c.fillRect(x, y, 1, 1);
       }));
     });
-    t.magFilter = THREE.NearestFilter; // scharfe Pixel wie in Yaras Design
+    t.magFilter = THREE.NearestFilter;
     return t;
   };
-  const seite = texMat('werkbank-seite', () => new THREE.MeshStandardMaterial({ map: pixel('seite'), roughness: 0.9 }));
-  const oben = texMat('werkbank-oben', () => new THREE.MeshStandardMaterial({ map: pixel('oben'), roughness: 0.85 }));
+  const seite = texMat('werkbank-seite', () => new THREE.MeshStandardMaterial({ map: raster('seite'), roughness: 0.9 }));
+  const oben = texMat('werkbank-oben', () => new THREE.MeshStandardMaterial({ map: raster('oben'), roughness: 0.85 }));
   const block = K.mesh(new THREE.BoxGeometry(S, S, S), [seite, seite, oben, seite, seite, seite]);
   block.position.set(0, S / 2, fz - S / 2);
   g.add(block);
-  K.numberPlate(g, K.gs * (S / 2 - 1.0), 2.4, fz + 0.03);
-  return { hedges: false };
+
+  werkbankDetails().then((d) => {
+    const m = (quelle) => new THREE.MeshStandardMaterial({ map: pixelTex(quelle), roughness: 0.9 });
+    const glatt = m(d.seite);
+    // Flächen der BoxGeometry: 0 +x, 1 -x, 2 oben, 3 unten, 4 vorn (Straße), 5 hinten.
+    // Yaras linke Seite schaut zum Anfang der Allee, ihre rechte zur Straße – so sieht man beide beim Hingehen.
+    const mats = [glatt, glatt, m(d.oben), glatt, m(d.rechts), glatt];
+    mats[K.gs > 0 ? 1 : 0] = m(d.links);
+    block.material = mats;
+    // Name und Info wie unter Yaras Block, auf dem Rasen davor
+    const schriftzug = picture(`werkbank-name`, S * 0.8, S * 0.2, (c, cv) => {
+      const w = cv.width, h = cv.height;
+      c.clearRect(0, 0, w, h);
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.font = `700 ${Math.round(h * 0.42)}px ${d.schrift}`;
+      c.fillStyle = '#3f3f3f'; c.fillText(d.name, w / 2 + h * 0.03, h * 0.36 + h * 0.03);
+      c.fillStyle = '#ffffff'; c.fillText(d.name, w / 2, h * 0.36);
+      c.font = `400 ${Math.round(h * 0.17)}px ${d.schrift}`;
+      c.fillStyle = '#2a2a2a'; c.fillText(d.info, w / 2 + h * 0.015, h * 0.78 + h * 0.015);
+      c.fillStyle = '#e4e4e4'; c.fillText(d.info, w / 2, h * 0.78);
+    }, 256);
+    schriftzug.rotation.x = -Math.PI / 2;
+    schriftzug.position.set(0, 0.03, fz + 1.35);
+    schriftzug.renderOrder = 1;
+    g.add(schriftzug);
+  }).catch((e) => console.warn('Werkbank: Yaras Details nicht geladen, der Block bleibt schlicht.', e));
+
+  return { hedges: false, sign: false, weg: false }; // kein Ausleger- und kein Nummernschild, die Schilder hängen am Block; ohne Tür auch kein Weg
 }
 
 const BUILDERS = {
