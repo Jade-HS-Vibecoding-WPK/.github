@@ -963,19 +963,21 @@ function buildHouse(p, index, signTex, plateTex) {
     for (const s of [-1, 1]) g.add(box(hedgeW, 0.75, 0.55, hedge, s * (0.75 + 0.2 + hedgeW / 2), 0.375, front + YARD - 0.4));
   }
 
-  // Ausleger-Schild (beidseitig lesbar, quer zur Straße)
-  const metal = mat('#2b333c', { metalness: 0.5, roughness: 0.4 });
-  const armY = hs.floors > 0 ? Math.min(3.25, H - 0.2) : 3.4;
-  // an der Fassade – oder auf der Baustelle an einem Pfosten am Zaun
-  const anchorZ = hs.floors > 0 ? front : front + YARD - 0.9;
-  if (hs.floors === 0) g.add(box(0.14, armY + 0.1, 0.14, metal, cornerX, (armY + 0.1) / 2, anchorZ));
-  g.add(box(0.07, 0.07, 3.3, metal, cornerX, armY, anchorZ + 1.65, { cast: false }));
-  const signMat = signMaterial(signTex);
-  const signFrame = mat('#1f2a36');
-  const sign = mesh(new THREE.BoxGeometry(0.06, 1.4, 2.8), [signMat, signMat, signFrame, signFrame, signFrame, signFrame]);
-  sign.position.set(cornerX, armY - 0.88, anchorZ + 1.75);
-  g.add(sign);
-  for (const dz of [-1.1, 1.1]) g.add(box(0.03, 0.18, 0.03, metal, cornerX, armY - 0.12, anchorZ + 1.75 + dz, { cast: false }));
+  // Ausleger-Schild (beidseitig lesbar, quer zur Straße) – Stile mit eigenem Schild schalten es ab
+  if (styled?.sign !== false) {
+    const metal = mat('#2b333c', { metalness: 0.5, roughness: 0.4 });
+    const armY = hs.floors > 0 ? Math.min(3.25, H - 0.2) : 3.4;
+    // an der Fassade – oder auf der Baustelle an einem Pfosten am Zaun
+    const anchorZ = hs.floors > 0 ? front : front + YARD - 0.9;
+    if (hs.floors === 0) g.add(box(0.14, armY + 0.1, 0.14, metal, cornerX, (armY + 0.1) / 2, anchorZ));
+    g.add(box(0.07, 0.07, 3.3, metal, cornerX, armY, anchorZ + 1.65, { cast: false }));
+    const signMat = signMaterial(signTex);
+    const signFrame = mat('#1f2a36');
+    const sign = mesh(new THREE.BoxGeometry(0.06, 1.4, 2.8), [signMat, signMat, signFrame, signFrame, signFrame, signFrame]);
+    sign.position.set(cornerX, armY - 0.88, anchorZ + 1.75);
+    g.add(sign);
+    for (const dz of [-1.1, 1.1]) g.add(box(0.03, 0.18, 0.03, metal, cornerX, armY - 0.12, anchorZ + 1.75 + dz, { cast: false }));
+  }
 
   g.traverse((o) => (o.userData.house = index));
   g.userData.house = index;

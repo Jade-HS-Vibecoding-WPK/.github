@@ -1242,7 +1242,7 @@ function kiosk(g, p, hs) {
   stand.position.set(gs * (W / 2 + 0.7), 0, fz + 1.3);
   stand.rotation.y = gs * 0.35;
   g.add(stand);
-  return { hedges: false };
+  return { hedges: false, sign: false }; // Leuchtschild „KIOSK“ und Hausnummer reichen, das Ausleger-Schild wäre größer als der Kiosk
 }
 
 const BUILDERS = {
