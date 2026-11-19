@@ -7,7 +7,7 @@
   "overrides": {
     "TERRA-Sim": { "house": "terra" },
     "ParaGecko": { "team": ["Freckle02"], "house": "nurdach" },
-    "urban-analysis-plugin": { "house": "voxel", "setzlinge": true },
+    "urban-analysis-plugin": { "house": "voxel", "setzlinge": true, "startGeschoss": 3 },
     "gebaeudehoehentool-umgebungsmodell": { "house": "hoehenmodell" },
     "laserdatei-aus-3D": { "house": "karton" },
     "Grundstuecksanalyse-Tool": { "house": "plankopf" },
